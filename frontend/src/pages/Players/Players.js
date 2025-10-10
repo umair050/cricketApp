@@ -1,5 +1,6 @@
 import React from "react";
 import { Users, Search, Filter, Plus } from "lucide-react";
+import InvitePlayerButton from "../../components/Invitations/InvitePlayerButton";
 
 const Players = () => {
   const mockPlayers = [
@@ -137,9 +138,7 @@ const Players = () => {
               <button className="flex-1 btn-cricket-outline text-sm py-2">
                 View Profile
               </button>
-              <button className="flex-1 btn-cricket text-sm py-2">
-                Connect
-              </button>
+              <InvitePlayerButton player={player} type="FRIEND" />
             </div>
           </div>
         ))}

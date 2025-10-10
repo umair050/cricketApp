@@ -6,6 +6,7 @@ import {
   Shield,
   Trophy,
   User,
+  Mail,
   Settings,
 } from "lucide-react";
 
@@ -15,6 +16,7 @@ const Sidebar = () => {
     { to: "/players", icon: Users, label: "Players" },
     { to: "/teams", icon: Shield, label: "Teams" },
     { to: "/tournaments", icon: Trophy, label: "Tournaments" },
+    { to: "/invitations", icon: Mail, label: "Invitations" },
     { to: "/profile", icon: User, label: "Profile" },
   ];
 

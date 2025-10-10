@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { PlayersModule } from './players/players.module';
 import { TeamsModule } from './teams/teams.module';
 import { TournamentsModule } from './tournaments/tournaments.module';
+import { InvitationsModule } from './invitations/invitations.module';
 import { SeederModule } from './seeder/seeder.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { SeederModule } from './seeder/seeder.module';
     PlayersModule,
     TeamsModule,
     TournamentsModule,
+    InvitationsModule,
     SeederModule,
   ],
 })

@@ -1,5 +1,6 @@
 import React from "react";
 import { Shield, Users, Plus, MapPin, Trophy } from "lucide-react";
+import InvitePlayerButton from "../../components/Invitations/InvitePlayerButton";
 
 const Teams = () => {
   const mockTeams = [
@@ -128,9 +129,11 @@ const Teams = () => {
               <button className="flex-1 btn-cricket-outline text-sm py-2">
                 View Team
               </button>
-              <button className="flex-1 btn-cricket text-sm py-2">
-                Join Request
-              </button>
+              <InvitePlayerButton 
+                player={{ id: '1', fullName: 'Sample Player', email: 'player@example.com' }} 
+                type="TEAM" 
+                entityId={team.id} 
+              />
             </div>
           </div>
         ))}

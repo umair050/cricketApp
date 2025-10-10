@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,6 +15,22 @@ export class UsersController {
   @Get()
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @ApiOperation({ summary: 'Search users' })
+  @ApiResponse({ status: 200, description: 'Users found successfully' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('search')
+  searchUsers(@Query('q') query: string) {
+    return this.usersService.searchUsers(query || '');
+  }
+
+  @ApiOperation({ summary: 'Debug users' })
+  @ApiResponse({ status: 200, description: 'Users debug info' })
+  @Get('debug')
+  async debugUsers() {
+    return this.usersService.debugUsers();
   }
 
   @ApiOperation({ summary: 'Get user by ID' })

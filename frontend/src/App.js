@@ -9,8 +9,10 @@ import Players from "./pages/Players/Players";
 import Teams from "./pages/Teams/Teams";
 import Tournaments from "./pages/Tournaments/Tournaments";
 import Profile from "./pages/Profile/Profile";
+import Invitations from "./pages/Invitations/Invitations";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DarkModeProvider } from "./contexts/DarkModeContext";
+import { InvitationProvider } from "./contexts/InvitationContext";
 
 function AppRoutes() {
   const { user, loading } = useAuthContext();
@@ -42,6 +44,7 @@ function AppRoutes() {
         <Route path="players" element={<Players />} />
         <Route path="teams" element={<Teams />} />
         <Route path="tournaments" element={<Tournaments />} />
+        <Route path="invitations" element={<Invitations />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 
@@ -58,9 +61,11 @@ function App() {
   return (
     <DarkModeProvider>
       <AuthProvider>
-        <div className="App">
-          <AppRoutes />
-        </div>
+        <InvitationProvider>
+          <div className="App">
+            <AppRoutes />
+          </div>
+        </InvitationProvider>
       </AuthProvider>
     </DarkModeProvider>
   );
