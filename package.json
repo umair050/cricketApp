@@ -1,0 +1,39 @@
+{
+  "name": "cricket-player-platform",
+  "version": "1.0.0",
+  "description": "A comprehensive platform for cricket players to connect, form teams, and participate in tournaments",
+  "main": "index.js",
+  "scripts": {
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm start",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm run start:prod"
+  },
+  "keywords": [
+    "cricket",
+    "sports",
+    "players",
+    "teams",
+    "tournaments",
+    "nestjs",
+    "react",
+    "typescript"
+  ],
+  "author": "Jianjun",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/cricket-player-platform.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/cricket-player-platform/issues"
+  },
+  "homepage": "https://github.com/your-username/cricket-player-platform#readme"
+}
