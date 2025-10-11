@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
-import { toggleLike, deletePost, sharePost } from "../../store/slices/feedSlice";
+import {
+  toggleLike,
+  deletePost,
+  sharePost,
+} from "../../store/slices/feedSlice";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { useDarkMode } from "../../contexts/DarkModeContext";
 import CommentsModal from "./CommentsModal";

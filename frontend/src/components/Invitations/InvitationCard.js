@@ -1,26 +1,35 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { User, Shield, Users, Trophy, Clock, Check, X, Trash2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
+import {
+  User,
+  Shield,
+  Users,
+  Trophy,
+  Clock,
+  Check,
+  X,
+  Trash2,
+} from "lucide-react";
 import {
   acceptInvitation,
   rejectInvitation,
   cancelInvitation,
   fetchInvitations,
-} from '../../store/slices/invitationSlice';
+} from "../../store/slices/invitationSlice";
 
-const InvitationCard = ({ invitation, type = 'received' }) => {
+const InvitationCard = ({ invitation, type = "received" }) => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
 
   const getInvitationIcon = (invitationType) => {
     switch (invitationType) {
-      case 'FRIEND':
+      case "FRIEND":
         return <User className="w-5 h-5" />;
-      case 'TEAM':
+      case "TEAM":
         return <Shield className="w-5 h-5" />;
-      case 'GROUP':
+      case "GROUP":
         return <Users className="w-5 h-5" />;
-      case 'TOURNAMENT':
+      case "TOURNAMENT":
         return <Trophy className="w-5 h-5" />;
       default:
         return <User className="w-5 h-5" />;
@@ -29,33 +38,33 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
 
   const getInvitationTypeLabel = (invitationType) => {
     switch (invitationType) {
-      case 'FRIEND':
-        return 'Friend Request';
-      case 'TEAM':
-        return 'Team Invitation';
-      case 'GROUP':
-        return 'Group Invitation';
-      case 'TOURNAMENT':
-        return 'Tournament Invitation';
+      case "FRIEND":
+        return "Friend Request";
+      case "TEAM":
+        return "Team Invitation";
+      case "GROUP":
+        return "Group Invitation";
+      case "TOURNAMENT":
+        return "Tournament Invitation";
       default:
-        return 'Invitation';
+        return "Invitation";
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-      case 'ACCEPTED':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'CANCELLED':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      case 'EXPIRED':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+      case "ACCEPTED":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "REJECTED":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+      case "CANCELLED":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+      case "EXPIRED":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
     }
   };
 
@@ -65,7 +74,7 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 1) return 'Yesterday';
+    if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
@@ -76,7 +85,7 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
       await dispatch(acceptInvitation(invitation.id)).unwrap();
       await dispatch(fetchInvitations());
     } catch (error) {
-      console.error('Failed to accept invitation:', error);
+      console.error("Failed to accept invitation:", error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +97,7 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
       await dispatch(rejectInvitation(invitation.id)).unwrap();
       await dispatch(fetchInvitations());
     } catch (error) {
-      console.error('Failed to reject invitation:', error);
+      console.error("Failed to reject invitation:", error);
     } finally {
       setLoading(false);
     }
@@ -100,15 +109,15 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
       await dispatch(cancelInvitation(invitation.id)).unwrap();
       await dispatch(fetchInvitations());
     } catch (error) {
-      console.error('Failed to cancel invitation:', error);
+      console.error("Failed to cancel invitation:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const user = type === 'received' ? invitation.sender : invitation.receiver;
-  const isPending = invitation.status === 'PENDING';
-  const isExpired = invitation.status === 'EXPIRED';
+  const user = type === "received" ? invitation.sender : invitation.receiver;
+  const isPending = invitation.status === "PENDING";
+  const isExpired = invitation.status === "EXPIRED";
 
   return (
     <div className="card-cricket hover:shadow-lg transition-shadow">
@@ -149,19 +158,25 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
 
           {/* Status and Time */}
           <div className="flex items-center justify-between mb-3">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invitation.status)}`}>
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                invitation.status
+              )}`}
+            >
               {invitation.status}
             </span>
             <div className="flex items-center space-x-1 text-muted">
               <Clock className="w-3 h-3" />
-              <span className="text-xs">{formatDate(invitation.createdAt)}</span>
+              <span className="text-xs">
+                {formatDate(invitation.createdAt)}
+              </span>
             </div>
           </div>
 
           {/* Action Buttons */}
           {isPending && !isExpired && (
             <div className="flex space-x-2">
-              {type === 'received' ? (
+              {type === "received" ? (
                 <>
                   <button
                     onClick={handleAccept}

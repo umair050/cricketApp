@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { UserPlus, Shield, Users } from "lucide-react";
-import { sendInvitation, fetchInvitations } from "../../store/slices/invitationSlice";
+import {
+  sendInvitation,
+  fetchInvitations,
+} from "../../store/slices/invitationSlice";
 import SendInvitationModal from "./SendInvitationModal";
 
 const InvitePlayerButton = ({ player, type = "FRIEND", entityId = null }) => {

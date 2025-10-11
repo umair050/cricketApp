@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { X, User, Shield, Users, Trophy } from "lucide-react";
-import { sendInvitation, fetchInvitations } from "../../store/slices/invitationSlice";
+import {
+  sendInvitation,
+  fetchInvitations,
+} from "../../store/slices/invitationSlice";
 import api from "../../services/api";
 
 const SendInvitationModal = ({

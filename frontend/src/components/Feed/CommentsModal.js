@@ -65,9 +65,7 @@ const CommentsModal = ({ post, onClose }) => {
   const handleDeleteComment = async (commentId) => {
     if (window.confirm("Are you sure you want to delete this comment?")) {
       try {
-        await dispatch(
-          deleteComment({ commentId, postId: post.id })
-        ).unwrap();
+        await dispatch(deleteComment({ commentId, postId: post.id })).unwrap();
         setComments((prev) => prev.filter((c) => c.id !== commentId));
       } catch (error) {
         console.error("Failed to delete comment:", error);
@@ -95,9 +93,7 @@ const CommentsModal = ({ post, onClose }) => {
     if (!replyText.trim()) return;
 
     try {
-      const reply = await dispatch(
-        addReply({ commentId, replyText })
-      ).unwrap();
+      const reply = await dispatch(addReply({ commentId, replyText })).unwrap();
       setReplies((prev) => ({
         ...prev,
         [commentId]: [...(prev[commentId] || []), reply],
