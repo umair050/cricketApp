@@ -10,9 +10,11 @@ import Teams from "./pages/Teams/Teams";
 import Tournaments from "./pages/Tournaments/Tournaments";
 import Profile from "./pages/Profile/Profile";
 import Invitations from "./pages/Invitations/Invitations";
+import Feed from "./pages/Feed/Feed";
+import { Provider } from "react-redux";
+import store from "./store";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DarkModeProvider } from "./contexts/DarkModeContext";
-import { InvitationProvider } from "./contexts/InvitationContext";
 
 function AppRoutes() {
   const { user, loading } = useAuthContext();
@@ -41,6 +43,7 @@ function AppRoutes() {
       <Route path="/" element={user ? <Layout /> : <Navigate to="/login" />}>
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="feed" element={<Feed />} />
         <Route path="players" element={<Players />} />
         <Route path="teams" element={<Teams />} />
         <Route path="tournaments" element={<Tournaments />} />
@@ -59,15 +62,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <DarkModeProvider>
-      <AuthProvider>
-        <InvitationProvider>
+    <Provider store={store}>
+      <DarkModeProvider>
+        <AuthProvider>
           <div className="App">
             <AppRoutes />
           </div>
-        </InvitationProvider>
-      </AuthProvider>
-    </DarkModeProvider>
+        </AuthProvider>
+      </DarkModeProvider>
+    </Provider>
   );
 }
 

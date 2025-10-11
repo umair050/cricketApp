@@ -83,4 +83,21 @@ export const tournamentsAPI = {
     api.delete(`/tournaments/${tournamentId}/teams/${teamId}`),
 };
 
+// Feeds API
+export const feedsAPI = {
+  createPost: (data) => api.post("/feeds", data),
+  getPosts: (params) => api.get("/feeds", { params }),
+  getPostById: (id) => api.get(`/feeds/${id}`),
+  updatePost: (id, data) => api.patch(`/feeds/${id}`, data),
+  deletePost: (id) => api.delete(`/feeds/${id}`),
+  toggleLike: (postId) => api.post(`/feeds/${postId}/like`),
+  getPostLikes: (postId) => api.get(`/feeds/${postId}/likes`),
+  addComment: (postId, data) => api.post(`/feeds/${postId}/comments`, data),
+  getPostComments: (postId, params) =>
+    api.get(`/feeds/${postId}/comments`, { params }),
+  deleteComment: (commentId) => api.delete(`/feeds/comments/${commentId}`),
+  getTrendingHashtags: (limit) =>
+    api.get("/feeds/trending/hashtags", { params: { limit } }),
+};
+
 export default api;

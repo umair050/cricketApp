@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { X, User, Shield, Users, Trophy } from "lucide-react";
-import { useInvitations } from "../../contexts/InvitationContext";
+import { sendInvitation, fetchInvitations } from "../../store/slices/invitationSlice";
 import api from "../../services/api";
 
 const SendInvitationModal = ({
@@ -9,7 +10,7 @@ const SendInvitationModal = ({
   invitationType = "FRIEND",
   entityId = null,
 }) => {
-  const { sendInvitation } = useInvitations();
+  const dispatch = useDispatch();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState("");
   const [message, setMessage] = useState("");
@@ -93,12 +94,15 @@ const SendInvitationModal = ({
     setSuccess("");
 
     try {
-      await sendInvitation({
-        receiverId: selectedUser,
-        type: invitationType,
-        entityId: entityId,
-        message: message.trim() || undefined,
-      });
+      await dispatch(
+        sendInvitation({
+          receiverId: selectedUser,
+          type: invitationType,
+          entityId: entityId,
+          message: message.trim() || undefined,
+        })
+      ).unwrap();
+      await dispatch(fetchInvitations());
       setSuccess("Invitation sent successfully!");
       setTimeout(() => {
         onClose();

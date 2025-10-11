@@ -34,6 +34,34 @@ body {
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+/* Prevent horizontal scroll */
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Ensure all elements stay within viewport */
+* {
+  max-width: 100%;
+}
+
+/* Hide scrollbar for horizontal scroll containers */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Smooth scrolling for horizontal scroll containers */
+.scrollbar-hide {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dark body {

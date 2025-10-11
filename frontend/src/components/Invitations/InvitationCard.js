@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
 import { User, Shield, Users, Trophy, Clock, Check, X, Trash2 } from 'lucide-react';
-import { useInvitations } from '../../contexts/InvitationContext';
+import {
+  acceptInvitation,
+  rejectInvitation,
+  cancelInvitation,
+  fetchInvitations,
+} from '../../store/slices/invitationSlice';
 
 const InvitationCard = ({ invitation, type = 'received' }) => {
-  const { acceptInvitation, rejectInvitation, cancelInvitation } = useInvitations();
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
 
   const getInvitationIcon = (invitationType) => {
@@ -67,7 +73,8 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
   const handleAccept = async () => {
     setLoading(true);
     try {
-      await acceptInvitation(invitation.id);
+      await dispatch(acceptInvitation(invitation.id)).unwrap();
+      await dispatch(fetchInvitations());
     } catch (error) {
       console.error('Failed to accept invitation:', error);
     } finally {
@@ -78,7 +85,8 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
   const handleReject = async () => {
     setLoading(true);
     try {
-      await rejectInvitation(invitation.id);
+      await dispatch(rejectInvitation(invitation.id)).unwrap();
+      await dispatch(fetchInvitations());
     } catch (error) {
       console.error('Failed to reject invitation:', error);
     } finally {
@@ -89,7 +97,8 @@ const InvitationCard = ({ invitation, type = 'received' }) => {
   const handleCancel = async () => {
     setLoading(true);
     try {
-      await cancelInvitation(invitation.id);
+      await dispatch(cancelInvitation(invitation.id)).unwrap();
+      await dispatch(fetchInvitations());
     } catch (error) {
       console.error('Failed to cancel invitation:', error);
     } finally {

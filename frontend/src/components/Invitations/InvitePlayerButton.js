@@ -1,38 +1,43 @@
-import React, { useState } from 'react';
-import { UserPlus, Shield, Users } from 'lucide-react';
-import { useInvitations } from '../../contexts/InvitationContext';
-import SendInvitationModal from './SendInvitationModal';
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
+import { UserPlus, Shield, Users } from "lucide-react";
+import { sendInvitation, fetchInvitations } from "../../store/slices/invitationSlice";
+import SendInvitationModal from "./SendInvitationModal";
 
-const InvitePlayerButton = ({ player, type = 'FRIEND', entityId = null }) => {
-  const { sendInvitation } = useInvitations();
+const InvitePlayerButton = ({ player, type = "FRIEND", entityId = null }) => {
+  const dispatch = useDispatch();
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const getButtonInfo = (inviteType) => {
     switch (inviteType) {
-      case 'FRIEND':
+      case "FRIEND":
         return {
           icon: <UserPlus className="w-4 h-4" />,
-          label: 'Send Friend Request',
-          className: 'btn-cricket-outline text-sm py-2 flex items-center justify-center space-x-1',
+          label: "Send Friend Request",
+          className:
+            "btn-cricket-outline text-sm py-2 flex items-center justify-center space-x-1",
         };
-      case 'TEAM':
+      case "TEAM":
         return {
           icon: <Shield className="w-4 h-4" />,
-          label: 'Invite to Team',
-          className: 'btn-cricket text-sm py-2 flex items-center justify-center space-x-1',
+          label: "Invite to Team",
+          className:
+            "btn-cricket text-sm py-2 flex items-center justify-center space-x-1",
         };
-      case 'GROUP':
+      case "GROUP":
         return {
           icon: <Users className="w-4 h-4" />,
-          label: 'Invite to Group',
-          className: 'btn-cricket-outline text-sm py-2 flex items-center justify-center space-x-1',
+          label: "Invite to Group",
+          className:
+            "btn-cricket-outline text-sm py-2 flex items-center justify-center space-x-1",
         };
       default:
         return {
           icon: <UserPlus className="w-4 h-4" />,
-          label: 'Send Invitation',
-          className: 'btn-cricket-outline text-sm py-2 flex items-center justify-center space-x-1',
+          label: "Send Invitation",
+          className:
+            "btn-cricket-outline text-sm py-2 flex items-center justify-center space-x-1",
         };
     }
   };
@@ -42,13 +47,16 @@ const InvitePlayerButton = ({ player, type = 'FRIEND', entityId = null }) => {
   const handleQuickInvite = async () => {
     setLoading(true);
     try {
-      await sendInvitation({
-        receiverId: player.id,
-        type: type,
-        entityId: entityId,
-      });
+      await dispatch(
+        sendInvitation({
+          receiverId: player.id,
+          type: type,
+          entityId: entityId,
+        })
+      ).unwrap();
+      await dispatch(fetchInvitations());
     } catch (error) {
-      console.error('Failed to send invitation:', error);
+      console.error("Failed to send invitation:", error);
       // If quick invite fails, show modal for manual entry
       setShowModal(true);
     } finally {
@@ -64,7 +72,7 @@ const InvitePlayerButton = ({ player, type = 'FRIEND', entityId = null }) => {
         className={buttonInfo.className}
       >
         {buttonInfo.icon}
-        <span>{loading ? 'Sending...' : buttonInfo.label}</span>
+        <span>{loading ? "Sending..." : buttonInfo.label}</span>
       </button>
 
       <SendInvitationModal
