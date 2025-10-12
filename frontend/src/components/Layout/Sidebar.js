@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Newspaper,
+  Swords,
 } from "lucide-react";
 import {
   toggleSidebar as toggleSidebarAction,
@@ -50,6 +51,7 @@ const Sidebar = () => {
     { to: "/players", icon: Users, label: "Players" },
     { to: "/teams", icon: Shield, label: "Teams" },
     { to: "/tournaments", icon: Trophy, label: "Tournaments" },
+    { to: "/matches", icon: Swords, label: "Matches" },
     { to: "/invitations", icon: Mail, label: "Invitations" },
     { to: "/profile", icon: User, label: "Profile" },
   ];

@@ -12,6 +12,7 @@ import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UpdateInvitationDto } from './dto/update-invitation.dto';
 import { User } from '../users/entities/user.entity';
 import { Team } from '../teams/entities/team.entity';
+import { Player, PlayerRole, BattingStyle, BowlingStyle } from '../players/entities/player.entity';
 import { TeamMember, TeamMemberRole } from '../teams/entities/team-member.entity';
 
 @Injectable()
@@ -23,6 +24,8 @@ export class InvitationsService {
     private userRepository: Repository<User>,
     @InjectRepository(Team)
     private teamRepository: Repository<Team>,
+    @InjectRepository(Player)
+    private playerRepository: Repository<Player>,
     @InjectRepository(TeamMember)
     private teamMemberRepository: Repository<TeamMember>,
   ) {}
@@ -201,53 +204,82 @@ export class InvitationsService {
 
     const team = await this.teamRepository.findOne({
       where: { id: teamId },
-      relations: ['members'],
+      relations: ['members', 'captain', 'createdBy'],
     });
 
     if (!team) {
       throw new NotFoundException('Team not found');
     }
 
-    // Check if sender is team captain or manager
-    const senderMembership = await this.teamMemberRepository.findOne({
-      where: { teamId: teamId, userId: senderId, role: TeamMemberRole.CAPTAIN },
+    // Check if sender is team owner, captain, or has CAPTAIN role
+    const isTeamOwner = team.createdBy?.id === senderId;
+    const isTeamCaptain = team.captain?.id === senderId;
+    
+    // Check if sender has captain role in team members
+    const senderPlayer = await this.playerRepository.findOne({
+      where: { user: { id: senderId } },
     });
-
-    if (!senderMembership) {
-      throw new ForbiddenException('Only team captains can send invitations');
+    
+    let senderMembership = null;
+    if (senderPlayer) {
+      senderMembership = await this.teamMemberRepository.findOne({
+        where: { 
+          team: { id: teamId }, 
+          player: { id: senderPlayer.id },
+          role: TeamMemberRole.CAPTAIN 
+        },
+      });
     }
 
-    // Check if users are friends
-    const friendship = await this.invitationRepository.findOne({
-      where: [
-        { senderId, receiverId, type: InvitationType.FRIEND, status: InvitationStatus.ACCEPTED },
-        { senderId: receiverId, receiverId: senderId, type: InvitationType.FRIEND, status: InvitationStatus.ACCEPTED },
-      ],
-    });
-
-    if (!friendship) {
-      throw new BadRequestException('Must be friends to invite to team');
+    if (!isTeamOwner && !isTeamCaptain && !senderMembership) {
+      throw new ForbiddenException('Only team owners or captains can send invitations');
     }
 
     // Check if receiver is already in team
-    const existingMembership = await this.teamMemberRepository.findOne({
-      where: { teamId: teamId, userId: receiverId },
+    const receiverPlayer = await this.playerRepository.findOne({
+      where: { user: { id: receiverId } },
     });
 
-    if (existingMembership) {
-      throw new ConflictException('User is already a team member');
+    if (receiverPlayer) {
+      const existingMembership = await this.teamMemberRepository.findOne({
+        where: { team: { id: teamId }, player: { id: receiverPlayer.id } },
+      });
+
+      if (existingMembership) {
+        throw new ConflictException('User is already a team member');
+      }
+    }
+
+    // Also check if user already has a pending invitation to this team
+    const pendingInvitation = await this.invitationRepository.findOne({
+      where: {
+        receiverId,
+        type: InvitationType.TEAM,
+        entityId: teamId,
+        status: InvitationStatus.PENDING,
+      },
+    });
+
+    if (pendingInvitation) {
+      throw new ConflictException('User already has a pending invitation to this team');
     }
 
     // Check team capacity (assuming max 20 members per team)
-    const memberCount = await this.teamMemberRepository.count({ where: { teamId: teamId } });
+    const memberCount = await this.teamMemberRepository.count({ 
+      where: { team: { id: teamId } } 
+    });
     if (memberCount >= 20) {
       throw new BadRequestException('Team is at maximum capacity (20 members)');
     }
 
     // Check if user is in too many teams (max 3)
-    const userTeamCount = await this.teamMemberRepository.count({ where: { userId: receiverId } });
-    if (userTeamCount >= 3) {
-      throw new BadRequestException('User is already in maximum number of teams (3)');
+    if (receiverPlayer) {
+      const userTeamCount = await this.teamMemberRepository.count({ 
+        where: { player: { id: receiverPlayer.id } } 
+      });
+      if (userTeamCount >= 3) {
+        throw new BadRequestException('User is already in maximum number of teams (3)');
+      }
     }
   }
 
@@ -301,12 +333,56 @@ export class InvitationsService {
         break;
 
       case InvitationType.TEAM:
-        // Add user to team
+        // Find or create player for the user
+        let player = await this.playerRepository.findOne({
+          where: { user: { id: invitation.receiverId } },
+          relations: ['user'],
+        });
+
+        if (!player) {
+          // Get the user
+          const user = await this.userRepository.findOne({
+            where: { id: invitation.receiverId },
+          });
+
+          if (!user) {
+            throw new NotFoundException('User not found');
+          }
+
+          // Create a player profile if it doesn't exist
+          player = this.playerRepository.create({
+            user: user,
+            role: PlayerRole.ALL_ROUNDER, // Default role
+            battingStyle: BattingStyle.RIGHT_HANDED,
+            bowlingStyle: BowlingStyle.RIGHT_ARM_MEDIUM,
+          });
+          player = await this.playerRepository.save(player);
+        }
+
+        // Check if player is already a member of the team
+        const existingMember = await this.teamMemberRepository.findOne({
+          where: { team: { id: invitation.entityId }, player: { id: player.id } },
+        });
+
+        if (existingMember) {
+          // Player already in team, just update invitation status
+          break;
+        }
+
+        // Get the team
+        const team = await this.teamRepository.findOne({
+          where: { id: invitation.entityId },
+        });
+
+        if (!team) {
+          throw new NotFoundException('Team not found');
+        }
+
+        // Add player to team as a member
         const teamMember = this.teamMemberRepository.create({
-          teamId: invitation.entityId,
-          userId: invitation.receiverId,
+          team: team,
+          player: player,
           role: TeamMemberRole.MEMBER,
-          joinedAt: new Date(),
         });
         await this.teamMemberRepository.save(teamMember);
         break;

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -13,8 +13,8 @@ export class TeamsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createTeamDto: any) {
-    return this.teamsService.create(createTeamDto);
+  create(@Body() createTeamDto: any, @Req() req: any) {
+    return this.teamsService.create(createTeamDto, req.user.id);
   }
 
   @ApiOperation({ summary: 'Get all teams' })

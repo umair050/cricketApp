@@ -5,8 +5,9 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Unique,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { Player } from '../../players/entities/player.entity';
 import { Team } from './team.entity';
 
 export enum TeamMemberRole {
@@ -16,15 +17,10 @@ export enum TeamMemberRole {
 }
 
 @Entity('team_members')
+@Unique(['team', 'player']) // Prevent duplicate team-player combinations
 export class TeamMember {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ name: 'team_id' })
-  teamId: number;
-
-  @Column({ name: 'user_id' })
-  userId: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({
     type: 'enum',
@@ -33,15 +29,13 @@ export class TeamMember {
   })
   role: TeamMemberRole;
 
-  @CreateDateColumn({ name: 'joined_at' })
+  @CreateDateColumn()
   joinedAt: Date;
 
   // Relations
-  @ManyToOne(() => Team)
-  @JoinColumn({ name: 'team_id' })
+  @ManyToOne(() => Team, team => team.members, { onDelete: 'CASCADE' })
   team: Team;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  @ManyToOne(() => Player, { eager: true, onDelete: 'CASCADE' })
+  player: Player;
 }

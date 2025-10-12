@@ -1,7 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, ManyToMany, OneToMany } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Player } from '../../players/entities/player.entity';
 import { Tournament } from '../../tournaments/entities/tournament.entity';
+import { TeamMember } from './team-member.entity';
 
 @Entity('teams')
 export class Team {
@@ -50,13 +50,11 @@ export class Team {
   @ManyToOne(() => User)
   captain: User;
 
-  @ManyToMany(() => Player, player => player.teams)
-  @JoinTable({
-    name: 'team_players',
-    joinColumn: { name: 'teamId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'playerId', referencedColumnName: 'id' }
-  })
-  players: Player[];
+  @ManyToOne(() => User)
+  createdBy: User;
+
+  @OneToMany(() => TeamMember, member => member.team)
+  members: TeamMember[];
 
   @ManyToMany(() => Tournament, tournament => tournament.teams)
   tournaments: Tournament[];

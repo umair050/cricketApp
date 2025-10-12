@@ -10,22 +10,26 @@ export class TeamsService {
     private teamsRepository: Repository<Team>,
   ) {}
 
-  async create(createTeamDto: any): Promise<Team> {
-    const team = this.teamsRepository.create(createTeamDto);
+  async create(createTeamDto: any, userId: number): Promise<Team> {
+    const team = this.teamsRepository.create({
+      ...createTeamDto,
+      captain: { id: createTeamDto.captainId || userId },
+      createdBy: { id: userId },
+    });
     const savedTeam = await this.teamsRepository.save(team);
     return Array.isArray(savedTeam) ? savedTeam[0] : savedTeam;
   }
 
   async findAll(): Promise<Team[]> {
     return this.teamsRepository.find({
-      relations: ['captain', 'players', 'players.user'],
+      relations: ['captain', 'createdBy', 'members', 'members.player', 'members.player.user'],
     });
   }
 
   async findOne(id: number): Promise<Team> {
     return this.teamsRepository.findOne({
       where: { id },
-      relations: ['captain', 'players', 'players.user', 'tournaments'],
+      relations: ['captain', 'createdBy', 'members', 'members.player', 'members.player.user', 'tournaments'],
     });
   }
 

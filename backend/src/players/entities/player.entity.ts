@@ -95,7 +95,4 @@ export class Player {
   @OneToOne(() => User, user => user.player)
   @JoinColumn()
   user: User;
-
-  @ManyToMany(() => Team, team => team.players)
-  teams: Team[];
 }
