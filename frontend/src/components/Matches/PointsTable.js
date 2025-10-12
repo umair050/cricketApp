@@ -282,3 +282,4 @@ const PointsTable = ({ tournamentId }) => {
 };
 
 export default PointsTable;
+

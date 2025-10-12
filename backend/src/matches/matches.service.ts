@@ -407,15 +407,30 @@ export class MatchesService {
         match: ball.match,
         player: ball.batsman,
         team: ball.battingTeam,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        strikeRate: 0,
+        isOut: false,
+        oversBowled: 0,
+        wickets: 0,
+        runsConceded: 0,
+        maidens: 0,
+        economy: 0,
+        catches: 0,
+        runOuts: 0,
+        stumpings: 0,
+        isPlayerOfMatch: false,
       });
     }
 
     if (ball.isLegal) {
-      batsmanCard.balls += 1;
+      batsmanCard.balls = (batsmanCard.balls || 0) + 1;
     }
-    batsmanCard.runs += ball.runs;
-    if (ball.runs === 4) batsmanCard.fours += 1;
-    if (ball.runs === 6) batsmanCard.sixes += 1;
+    batsmanCard.runs = (batsmanCard.runs || 0) + ball.runs;
+    if (ball.runs === 4) batsmanCard.fours = (batsmanCard.fours || 0) + 1;
+    if (ball.runs === 6) batsmanCard.sixes = (batsmanCard.sixes || 0) + 1;
     if (ball.isWicket) {
       batsmanCard.isOut = true;
       batsmanCard.dismissalType = ball.wicketType;
@@ -440,6 +455,21 @@ export class MatchesService {
         match: ball.match,
         player: ball.bowler,
         team: ball.bowlingTeam,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        strikeRate: 0,
+        isOut: false,
+        oversBowled: 0,
+        wickets: 0,
+        runsConceded: 0,
+        maidens: 0,
+        economy: 0,
+        catches: 0,
+        runOuts: 0,
+        stumpings: 0,
+        isPlayerOfMatch: false,
       });
     }
 
@@ -454,9 +484,9 @@ export class MatchesService {
       bowlerCard.oversBowled = parseFloat((Math.floor(ballsThisOver / 6) + (ballsThisOver % 6) / 10).toFixed(1));
     }
 
-    bowlerCard.runsConceded += ball.runs + ball.extras;
+    bowlerCard.runsConceded = (bowlerCard.runsConceded || 0) + ball.runs + ball.extras;
     if (ball.isWicket) {
-      bowlerCard.wickets += 1;
+      bowlerCard.wickets = (bowlerCard.wickets || 0) + 1;
     }
     if (bowlerCard.oversBowled > 0) {
       bowlerCard.economy = parseFloat((bowlerCard.runsConceded / bowlerCard.oversBowled).toFixed(2));
@@ -835,4 +865,5 @@ export class MatchesService {
     }
   }
 }
+
 

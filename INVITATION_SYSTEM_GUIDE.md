@@ -232,3 +232,4 @@ CREATE TABLE invitations (
 The Invitation System provides a robust, scalable foundation for social interactions within the Cricket Platform. It supports multiple invitation types with comprehensive validation, real-time updates, and excellent user experience across all devices and themes.
 
 The system is designed to be extensible, allowing for easy addition of new invitation types and features as the platform grows.
+

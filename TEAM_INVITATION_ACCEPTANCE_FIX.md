@@ -496,3 +496,4 @@ curl http://localhost:3001/teams/7
 **Team Display**: 🟢 Complete
 
 **🎊 Team invitation system now fully functional!** 🏏
+

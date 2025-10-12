@@ -414,3 +414,4 @@ dispatch(fetchInvitations());
 **Workflow**: 🟢 Send → Accept → Join
 
 **🎊 Your team management system is complete!** 🏏
+

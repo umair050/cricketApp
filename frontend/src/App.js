@@ -13,6 +13,7 @@ import Profile from "./pages/Profile/Profile";
 import Invitations from "./pages/Invitations/Invitations";
 import Feed from "./pages/Feed/Feed";
 import Matches from "./pages/Matches/Matches";
+import MatchDetail from "./pages/Matches/MatchDetail";
 import { Provider } from "react-redux";
 import store from "./store";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="teams/:id" element={<TeamDetail />} />
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="matches" element={<Matches />} />
+        <Route path="matches/:id" element={<MatchDetail />} />
         <Route path="invitations" element={<Invitations />} />
         <Route path="profile" element={<Profile />} />
       </Route>

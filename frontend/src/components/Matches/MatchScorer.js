@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   RotateCcw,
@@ -16,6 +22,11 @@ import {
 } from "../../store/slices/matchSlice";
 import { useDarkMode } from "../../contexts/DarkModeContext";
 
+// Module-level Set to track loaded matches across all component instances
+// This persists even if component unmounts/remounts
+const loadedMatches = new Set();
+const loadingMatches = new Set();
+
 const MatchScorer = ({ match, players }) => {
   const dispatch = useDispatch();
   const { isDarkMode } = useDarkMode();
@@ -30,126 +41,216 @@ const MatchScorer = ({ match, players }) => {
   const [wicketType, setWicketType] = useState("");
   const [selectedOutcome, setSelectedOutcome] = useState(null);
 
-  // Calculate current over and ball
-  const legalBalls = balls.filter((b) => b.isLegal).length;
-  const currentOver = Math.floor(legalBalls / 6);
-  const currentBall = legalBalls % 6;
-  const overDisplay = `${currentOver}.${currentBall}`;
+  // Extract match ID once to prevent object reference issues
+  const matchId = match?.id;
 
+  // Memoize calculated values to prevent unnecessary recalculations
+  const { legalBalls, currentOver, currentBall, overDisplay } = useMemo(() => {
+    const legal = balls.filter((b) => b.isLegal).length;
+    const over = Math.floor(legal / 6);
+    const ball = legal % 6;
+    return {
+      legalBalls: legal,
+      currentOver: over,
+      currentBall: ball,
+      overDisplay: `${over}.${ball}`,
+    };
+  }, [balls]);
+
+  // Memoize static data
+  const ballOutcomes = useMemo(
+    () => [
+      { id: "dot", label: "0", runs: 0, color: "gray" },
+      { id: "single", label: "1", runs: 1, color: "blue" },
+      { id: "double", label: "2", runs: 2, color: "blue" },
+      { id: "triple", label: "3", runs: 3, color: "blue" },
+      { id: "four", label: "4", runs: 4, color: "green" },
+      { id: "six", label: "6", runs: 6, color: "purple" },
+    ],
+    []
+  );
+
+  const extras = useMemo(
+    () => [
+      { id: "wide", label: "Wide", runs: 1 },
+      { id: "no_ball", label: "No Ball", runs: 1 },
+      { id: "bye", label: "Bye", runs: 1 },
+      { id: "leg_bye", label: "Leg Bye", runs: 1 },
+    ],
+    []
+  );
+
+  const wicketTypes = useMemo(
+    () => ["bowled", "caught", "lbw", "run_out", "stumped", "hit_wicket"],
+    []
+  );
+
+  // Fetch match data only once when match ID changes
   useEffect(() => {
-    if (match?.id) {
-      dispatch(fetchMatchBalls(match.id));
-      dispatch(fetchLiveScore(match.id));
-    }
-  }, [dispatch, match?.id]);
+    console.log(
+      "[MatchScorer] useEffect triggered - matchId:",
+      matchId,
+      "loaded:",
+      loadedMatches.has(matchId),
+      "loading:",
+      loadingMatches.has(matchId)
+    );
 
-  const ballOutcomes = [
-    { id: "dot", label: "0", runs: 0, color: "gray" },
-    { id: "one", label: "1", runs: 1, color: "blue" },
-    { id: "two", label: "2", runs: 2, color: "blue" },
-    { id: "three", label: "3", runs: 3, color: "blue" },
-    { id: "four", label: "4", runs: 4, color: "green" },
-    { id: "six", label: "6", runs: 6, color: "purple" },
-  ];
-
-  const extras = [
-    { id: "wide", label: "Wide", runs: 1 },
-    { id: "no_ball", label: "No Ball", runs: 1 },
-    { id: "bye", label: "Bye", runs: 1 },
-    { id: "leg_bye", label: "Leg Bye", runs: 1 },
-  ];
-
-  const wicketTypes = [
-    "bowled",
-    "caught",
-    "lbw",
-    "run_out",
-    "stumped",
-    "hit_wicket",
-  ];
-
-  const handleBallClick = async (outcome) => {
-    if (!currentBatsman || !currentBowler) {
-      alert("Please select batsman and bowler first!");
+    // Skip if no match ID, already loaded, or currently loading
+    if (!matchId || loadedMatches.has(matchId) || loadingMatches.has(matchId)) {
+      console.log("[MatchScorer] Skipping fetch - already loaded or loading");
       return;
     }
 
-    if (outcome.id === "wicket") {
-      setShowWicketModal(true);
-      setSelectedOutcome(outcome);
-      return;
-    }
+    console.log("[MatchScorer] Fetching match data for matchId:", matchId);
 
-    await submitBall(outcome);
-  };
+    // Mark as loading and loaded IMMEDIATELY to prevent race conditions
+    loadingMatches.add(matchId);
+    loadedMatches.add(matchId);
 
-  const submitBall = async (outcome, isWicket = false, wType = null) => {
-    try {
-      const ballData = {
-        battingTeamId: match.teamA.id, // Adjust based on innings
-        bowlingTeamId: match.teamB.id,
-        overNumber: parseFloat(overDisplay),
-        batsmanId: parseInt(currentBatsman),
-        bowlerId: parseInt(currentBowler),
-        outcome: outcome.id,
-        runs: outcome.runs || 0,
-        extras: ["wide", "no_ball", "bye", "leg_bye"].includes(outcome.id)
-          ? outcome.runs
-          : 0,
-        isWicket,
-        wicketType: wType,
-        commentary: commentary || undefined,
-      };
+    // Reset state when match changes
+    setCurrentBatsman("");
+    setCurrentBowler("");
+    setCommentary("");
+    setShowWicketModal(false);
+    setWicketType("");
 
-      await dispatch(addBall({ matchId: match.id, ballData })).unwrap();
+    // Fetch match data
+    const fetchData = async () => {
+      try {
+        console.log("[MatchScorer] Starting API calls...");
+        await Promise.all([
+          dispatch(fetchMatchBalls(matchId)),
+          dispatch(fetchLiveScore(matchId)),
+        ]);
+        console.log("[MatchScorer] API calls completed");
+      } catch (error) {
+        console.error("Failed to fetch match data:", error);
+        // On error, remove from loaded set so it can retry
+        loadedMatches.delete(matchId);
+      } finally {
+        loadingMatches.delete(matchId);
+      }
+    };
 
-      // Refresh live score
-      dispatch(fetchLiveScore(match.id));
+    fetchData();
 
-      // Clear commentary
-      setCommentary("");
+    // Cleanup function
+    return () => {
+      loadingMatches.delete(matchId);
+    };
+    // dispatch is stable from Redux, safe to omit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
 
-      // Close wicket modal if open
-      setShowWicketModal(false);
-    } catch (error) {
-      console.error("Failed to add ball:", error);
-      alert("Failed to add ball. Please try again.");
-    }
-  };
+  // Memoize submit ball function
+  const submitBall = useCallback(
+    async (outcome, isWicket = false, wType = null) => {
+      if (!matchId || !match?.teamA?.id || !match?.teamB?.id) {
+        console.error("Match data incomplete");
+        return;
+      }
 
-  const handleWicketSubmit = () => {
+      try {
+        const ballData = {
+          matchId: matchId, // Add matchId to the payload
+          battingTeamId: match.teamA.id,
+          bowlingTeamId: match.teamB.id,
+          overNumber: parseFloat(overDisplay),
+          batsmanId: parseInt(currentBatsman),
+          bowlerId: parseInt(currentBowler),
+          outcome: outcome.id,
+          runs: outcome.runs || 0,
+          extras: ["wide", "no_ball", "bye", "leg_bye"].includes(outcome.id)
+            ? outcome.runs
+            : 0,
+          isWicket,
+          wicketType: wType,
+          commentary: commentary || undefined,
+        };
+
+        await dispatch(addBall({ matchId, ballData })).unwrap();
+
+        // Refresh live score after adding ball
+        await dispatch(fetchLiveScore(matchId));
+
+        // Clear commentary
+        setCommentary("");
+
+        // Close wicket modal if open
+        setShowWicketModal(false);
+      } catch (error) {
+        console.error("Failed to add ball:", error);
+        alert("Failed to add ball. Please try again.");
+      }
+    },
+    [
+      matchId,
+      match?.teamA?.id,
+      match?.teamB?.id,
+      overDisplay,
+      currentBatsman,
+      currentBowler,
+      commentary,
+      dispatch,
+    ]
+  );
+
+  const handleBallClick = useCallback(
+    async (outcome) => {
+      if (!currentBatsman || !currentBowler) {
+        alert("Please select batsman and bowler first!");
+        return;
+      }
+
+      if (outcome.id === "wicket") {
+        setShowWicketModal(true);
+        setSelectedOutcome(outcome);
+        return;
+      }
+
+      await submitBall(outcome);
+    },
+    [currentBatsman, currentBowler, submitBall]
+  );
+
+  const handleWicketSubmit = useCallback(() => {
     if (!wicketType) {
       alert("Please select wicket type!");
       return;
     }
 
     submitBall({ id: "wicket", label: "W", runs: 0 }, true, wicketType);
-  };
+    setWicketType("");
+  }, [wicketType, submitBall]);
 
-  const handleUndo = async () => {
+  const handleUndo = useCallback(async () => {
+    if (!matchId) return;
+
     if (window.confirm("Are you sure you want to undo the last ball?")) {
       try {
-        await dispatch(undoLastBall(match.id)).unwrap();
-        dispatch(fetchLiveScore(match.id));
+        await dispatch(undoLastBall(matchId)).unwrap();
+        await dispatch(fetchLiveScore(matchId));
       } catch (error) {
         console.error("Failed to undo ball:", error);
         alert("Failed to undo ball.");
       }
     }
-  };
+  }, [matchId, dispatch]);
 
-  const handleCompleteInnings = async () => {
+  const handleCompleteInnings = useCallback(() => {
     if (
       window.confirm(
         "Are you sure you want to complete this innings? This action cannot be undone."
       )
     ) {
-      // Implement innings completion logic
       alert("Innings completed! Implement logic to switch innings.");
     }
-  };
+  }, []);
 
-  const handleCompleteMatch = async () => {
+  const handleCompleteMatch = useCallback(async () => {
+    if (!matchId || !match) return;
+
     if (
       window.confirm(
         "Are you sure you want to complete this match and declare the result?"
@@ -158,7 +259,7 @@ const MatchScorer = ({ match, players }) => {
       try {
         await dispatch(
           updateMatchResult({
-            matchId: match.id,
+            matchId,
             resultData: {
               status: "completed",
               winnerId:
@@ -176,9 +277,9 @@ const MatchScorer = ({ match, players }) => {
         alert("Failed to complete match.");
       }
     }
-  };
+  }, [matchId, match, liveScore, dispatch]);
 
-  const getColorClass = (color) => {
+  const getColorClass = useCallback((color) => {
     const colors = {
       gray: "bg-gray-500 hover:bg-gray-600",
       blue: "bg-blue-500 hover:bg-blue-600",
@@ -188,7 +289,28 @@ const MatchScorer = ({ match, players }) => {
       yellow: "bg-yellow-500 hover:bg-yellow-600",
     };
     return colors[color] || colors.gray;
-  };
+  }, []);
+
+  // Memoize recent balls to prevent unnecessary re-renders
+  const recentBalls = useMemo(() => balls.slice(-6), [balls]);
+
+  if (!match) {
+    return (
+      <div
+        className={`rounded-lg shadow-md p-6 ${
+          isDarkMode ? "bg-gray-800" : "bg-white"
+        }`}
+      >
+        <p
+          className={`text-center ${
+            isDarkMode ? "text-gray-400" : "text-gray-600"
+          }`}
+        >
+          No match data available
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -212,7 +334,7 @@ const MatchScorer = ({ match, players }) => {
         >
           <Trophy className="w-4 h-4" />
           <span>
-            {match?.teamA?.name} vs {match?.teamB?.name}
+            {match.teamA?.name} vs {match.teamB?.name}
           </span>
         </div>
       </div>
@@ -231,7 +353,7 @@ const MatchScorer = ({ match, players }) => {
                   isDarkMode ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                {match?.teamA?.name}
+                {match.teamA?.name}
               </p>
               <p
                 className={`text-3xl font-bold ${
@@ -245,7 +367,7 @@ const MatchScorer = ({ match, players }) => {
                   isDarkMode ? "text-gray-500" : "text-gray-500"
                 }`}
               >
-                ({liveScore.teamAScore?.overs} overs)
+                ({liveScore.teamAScore?.overs || "0.0"} overs)
               </p>
             </div>
             <div className="text-center">
@@ -254,7 +376,7 @@ const MatchScorer = ({ match, players }) => {
                   isDarkMode ? "text-gray-400" : "text-gray-600"
                 }`}
               >
-                {match?.teamB?.name}
+                {match.teamB?.name}
               </p>
               <p
                 className={`text-3xl font-bold ${
@@ -451,9 +573,9 @@ const MatchScorer = ({ match, players }) => {
           Recent Balls (Last 6)
         </p>
         <div className="flex gap-2 flex-wrap">
-          {balls.slice(-6).map((ball, index) => (
+          {recentBalls.map((ball, index) => (
             <div
-              key={index}
+              key={`${ball.id || index}-${index}`}
               className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                 ball.isWicket
                   ? "bg-red-500 text-white"
@@ -512,7 +634,11 @@ const MatchScorer = ({ match, players }) => {
       {error && (
         <div className="mt-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
+          <span>
+            {typeof error === "string"
+              ? error
+              : error?.message || error?.error || "An error occurred"}
+          </span>
         </div>
       )}
 

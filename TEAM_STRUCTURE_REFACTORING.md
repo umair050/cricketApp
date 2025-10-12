@@ -571,3 +571,4 @@ TypeORM will automatically update the database schema!
 **Code**: 🟢 Cleaner
 
 **🎊 Team structure now uses a single, clean entity!** 🏏
+

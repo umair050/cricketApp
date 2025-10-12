@@ -222,3 +222,4 @@ const MatchCard = ({ match }) => {
 };
 
 export default MatchCard;
+

@@ -131,3 +131,4 @@ The invitation modal is now fully functional and user-friendly. You can:
 4. Get immediate feedback on success or failure
 
 Happy inviting! 🏏
+

@@ -301,3 +301,4 @@ const CreateTeamModal = ({ isOpen, onClose, onSuccess }) => {
 };
 
 export default CreateTeamModal;
+

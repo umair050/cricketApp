@@ -20,3 +20,4 @@ DROP TABLE IF EXISTS tournament_groups CASCADE;
 -- \c cricketapp
 -- \i DATABASE_FIX_MATCH_TABLES.sql
 
+
