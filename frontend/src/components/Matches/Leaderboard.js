@@ -338,3 +338,4 @@ const Leaderboard = ({ tournamentId, type = "batting" }) => {
 
 export default Leaderboard;
 
+

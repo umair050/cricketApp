@@ -374,3 +374,4 @@ Final Result & Statistics
 ## 📞 **Need Help?**
 
 Check the browser console (F12) for detailed error messages if something doesn't work!
+

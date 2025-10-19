@@ -21,6 +21,12 @@ import {
   updateMatchResult,
 } from "../../store/slices/matchSlice";
 import { useDarkMode } from "../../contexts/DarkModeContext";
+import BowlerSelectionModal from "./BowlerSelectionModal";
+import ExtraRunsModal from "./ExtraRunsModal";
+import {
+  saveScorerState,
+  loadScorerState,
+} from "../../utils/matchScorerStorage";
 
 // Module-level Set to track loaded matches across all component instances
 // This persists even if component unmounts/remounts
@@ -35,14 +41,82 @@ const MatchScorer = ({ match, players }) => {
   );
 
   const [currentBatsman, setCurrentBatsman] = useState("");
+  const [currentNonStriker, setCurrentNonStriker] = useState("");
   const [currentBowler, setCurrentBowler] = useState("");
   const [commentary, setCommentary] = useState("");
   const [showWicketModal, setShowWicketModal] = useState(false);
   const [wicketType, setWicketType] = useState("");
   const [selectedOutcome, setSelectedOutcome] = useState(null);
+  const [lastBowler, setLastBowler] = useState(null);
+  const [showBowlerModal, setShowBowlerModal] = useState(false);
+  const [isFreeHit, setIsFreeHit] = useState(false);
+  const [showExtraRunsModal, setShowExtraRunsModal] = useState(false);
+  const [selectedExtra, setSelectedExtra] = useState(null);
+  const [extraRuns, setExtraRuns] = useState(0);
 
   // Extract match ID once to prevent object reference issues
   const matchId = match?.id;
+
+  // Track component mounts for debugging
+  useEffect(() => {
+    console.log("[MatchScorer] Component MOUNTED for match:", matchId);
+    return () => {
+      console.log("[MatchScorer] Component UNMOUNTED for match:", matchId);
+    };
+  }, [matchId]);
+
+  // Load saved state on mount (persists across remounts)
+  useEffect(() => {
+    if (!matchId) return;
+
+    const savedState = loadScorerState(matchId);
+    console.log(
+      "[Persistence] Attempting to load saved state for match:",
+      matchId
+    );
+
+    if (savedState) {
+      console.log("[Persistence] Found saved state! Restoring:", savedState);
+      setCurrentBatsman(savedState.currentBatsman || "");
+      setCurrentNonStriker(savedState.currentNonStriker || "");
+      setCurrentBowler(savedState.currentBowler || "");
+      setLastBowler(savedState.lastBowler || null);
+      setIsFreeHit(savedState.isFreeHit || false);
+    } else {
+      console.log("[Persistence] No saved state found. Starting fresh.");
+    }
+  }, [matchId]);
+
+  // Save state whenever players change
+  useEffect(() => {
+    if (!matchId) return;
+
+    // Only save if at least one player is selected
+    if (currentBatsman || currentNonStriker || currentBowler) {
+      console.log("[Persistence] Saving state:", {
+        currentBatsman,
+        currentNonStriker,
+        currentBowler,
+        lastBowler,
+        isFreeHit,
+      });
+
+      saveScorerState(matchId, {
+        currentBatsman,
+        currentNonStriker,
+        currentBowler,
+        lastBowler,
+        isFreeHit,
+      });
+    }
+  }, [
+    matchId,
+    currentBatsman,
+    currentNonStriker,
+    currentBowler,
+    lastBowler,
+    isFreeHit,
+  ]);
 
   // Memoize calculated values to prevent unnecessary recalculations
   const { legalBalls, currentOver, currentBall, overDisplay } = useMemo(() => {
@@ -80,10 +154,24 @@ const MatchScorer = ({ match, players }) => {
     []
   );
 
-  const wicketTypes = useMemo(
-    () => ["bowled", "caught", "lbw", "run_out", "stumped", "hit_wicket"],
-    []
-  );
+  // Wicket types - filter based on free hit
+  const wicketTypes = useMemo(() => {
+    const allWickets = [
+      "bowled",
+      "caught",
+      "lbw",
+      "run_out",
+      "stumped",
+      "hit_wicket",
+    ];
+
+    // During free hit, only run_out is allowed
+    if (isFreeHit) {
+      return ["run_out"];
+    }
+
+    return allWickets;
+  }, [isFreeHit]);
 
   // Fetch match data only once when match ID changes
   useEffect(() => {
@@ -110,10 +198,16 @@ const MatchScorer = ({ match, players }) => {
 
     // Reset state when match changes
     setCurrentBatsman("");
+    setCurrentNonStriker("");
     setCurrentBowler("");
     setCommentary("");
     setShowWicketModal(false);
     setWicketType("");
+    setLastBowler(null);
+    setIsFreeHit(false);
+    setShowExtraRunsModal(false);
+    setSelectedExtra(null);
+    setExtraRuns(0);
 
     // Fetch match data
     const fetchData = async () => {
@@ -143,6 +237,19 @@ const MatchScorer = ({ match, players }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
+  // Swap striker and non-striker
+  const swapBatsmen = useCallback(() => {
+    console.log(
+      "[Rotation] Swapping batsmen - Striker:",
+      currentBatsman,
+      "Non-Striker:",
+      currentNonStriker
+    );
+    const temp = currentBatsman;
+    setCurrentBatsman(currentNonStriker);
+    setCurrentNonStriker(temp);
+  }, [currentBatsman, currentNonStriker]);
+
   // Memoize submit ball function
   const submitBall = useCallback(
     async (outcome, isWicket = false, wType = null) => {
@@ -158,6 +265,7 @@ const MatchScorer = ({ match, players }) => {
           bowlingTeamId: match.teamB.id,
           overNumber: parseFloat(overDisplay),
           batsmanId: parseInt(currentBatsman),
+          nonStrikerId: currentNonStriker ? parseInt(currentNonStriker) : null,
           bowlerId: parseInt(currentBowler),
           outcome: outcome.id,
           runs: outcome.runs || 0,
@@ -179,6 +287,48 @@ const MatchScorer = ({ match, players }) => {
 
         // Close wicket modal if open
         setShowWicketModal(false);
+
+        // AUTO-ROTATION LOGIC
+        const runsScored = outcome.runs || 0;
+        const isLegalBall = !["wide", "no_ball"].includes(outcome.id);
+
+        console.log(
+          "[Rotation] Ball completed - Runs:",
+          runsScored,
+          "Legal:",
+          isLegalBall,
+          "Current Ball:",
+          currentBall,
+          "Free Hit:",
+          isFreeHit
+        );
+
+        // FREE HIT LOGIC
+        if (outcome.id === "no_ball") {
+          console.log("[Free Hit] No-ball bowled - next ball is FREE HIT!");
+          setIsFreeHit(true);
+        } else if (isFreeHit) {
+          console.log("[Free Hit] Free hit completed - resetting");
+          setIsFreeHit(false);
+        }
+
+        // Rotate on odd runs (1, 3, 5) - only if non-striker is selected
+        if (runsScored % 2 === 1 && currentNonStriker) {
+          console.log("[Rotation] Odd runs scored - rotating batsmen");
+          swapBatsmen();
+        }
+
+        // Rotate at end of over (after 6th legal ball)
+        if (isLegalBall && currentBall === 5 && currentNonStriker) {
+          console.log("[Rotation] Over complete - rotating batsmen");
+          // Add small delay so user can see the ball result first
+          setTimeout(() => {
+            swapBatsmen();
+            // Show bowler selection modal after rotation
+            setLastBowler(currentBowler);
+            setShowBowlerModal(true);
+          }, 800);
+        }
       } catch (error) {
         console.error("Failed to add ball:", error);
         alert("Failed to add ball. Please try again.");
@@ -190,9 +340,12 @@ const MatchScorer = ({ match, players }) => {
       match?.teamB?.id,
       overDisplay,
       currentBatsman,
+      currentNonStriker,
       currentBowler,
+      currentBall,
       commentary,
       dispatch,
+      swapBatsmen,
     ]
   );
 
@@ -203,12 +356,28 @@ const MatchScorer = ({ match, players }) => {
         return;
       }
 
+      // Handle wicket
       if (outcome.id === "wicket") {
         setShowWicketModal(true);
         setSelectedOutcome(outcome);
         return;
       }
 
+      // Handle bye/leg-bye - need to select runs
+      if (outcome.id === "bye" || outcome.id === "leg_bye") {
+        setSelectedExtra(outcome);
+        setShowExtraRunsModal(true);
+        return;
+      }
+
+      // Handle wide/no-ball - can have additional runs
+      if (outcome.id === "wide" || outcome.id === "no_ball") {
+        setSelectedExtra(outcome);
+        setShowExtraRunsModal(true);
+        return;
+      }
+
+      // Normal ball - submit directly
       await submitBall(outcome);
     },
     [currentBatsman, currentBowler, submitBall]
@@ -279,6 +448,50 @@ const MatchScorer = ({ match, players }) => {
     }
   }, [matchId, match, liveScore, dispatch]);
 
+  const handleBowlerSelection = useCallback(
+    (newBowlerId) => {
+      console.log(
+        "[Bowler Change] New bowler selected:",
+        newBowlerId,
+        "Last bowler:",
+        lastBowler
+      );
+
+      if (newBowlerId == lastBowler) {
+        alert("Same bowler cannot bowl consecutive overs!");
+        return;
+      }
+
+      setCurrentBowler(newBowlerId);
+      setShowBowlerModal(false);
+    },
+    [lastBowler]
+  );
+
+  const handleExtraRunsSubmit = useCallback(
+    (extraType, additionalRuns) => {
+      console.log(
+        "[Extras] Submitting extra:",
+        extraType.id,
+        "Additional runs:",
+        additionalRuns
+      );
+
+      // Create outcome with total runs
+      const totalRuns = (extraType.runs || 0) + additionalRuns;
+      const outcomeWithRuns = {
+        ...extraType,
+        runs: totalRuns,
+      };
+
+      submitBall(outcomeWithRuns);
+      setShowExtraRunsModal(false);
+      setSelectedExtra(null);
+      setExtraRuns(0);
+    },
+    [submitBall]
+  );
+
   const getColorClass = useCallback((color) => {
     const colors = {
       gray: "bg-gray-500 hover:bg-gray-600",
@@ -293,6 +506,47 @@ const MatchScorer = ({ match, players }) => {
 
   // Memoize recent balls to prevent unnecessary re-renders
   const recentBalls = useMemo(() => balls.slice(-6), [balls]);
+
+  // Calculate bowler stats from balls
+  const bowlerStats = useMemo(() => {
+    const stats = {};
+
+    balls.forEach((ball) => {
+      const bowlerId = ball.bowler?.id;
+      if (!bowlerId) return;
+
+      if (!stats[bowlerId]) {
+        stats[bowlerId] = {
+          playerId: bowlerId,
+          overs: 0,
+          wickets: 0,
+          runsConceded: 0,
+          economy: 0,
+          legalBalls: 0,
+        };
+      }
+
+      if (ball.isLegal) {
+        stats[bowlerId].legalBalls += 1;
+      }
+      stats[bowlerId].wickets += ball.isWicket ? 1 : 0;
+      stats[bowlerId].runsConceded += (ball.runs || 0) + (ball.extras || 0);
+    });
+
+    // Calculate overs and economy
+    Object.values(stats).forEach((stat) => {
+      const completedOvers = Math.floor(stat.legalBalls / 6);
+      const remainingBalls = stat.legalBalls % 6;
+      stat.overs = parseFloat(`${completedOvers}.${remainingBalls}`);
+
+      if (stat.overs > 0) {
+        const oversDecimal = completedOvers + remainingBalls / 6;
+        stat.economy = stat.runsConceded / oversDecimal;
+      }
+    });
+
+    return Object.values(stats);
+  }, [balls]);
 
   if (!match) {
     return (
@@ -428,9 +682,101 @@ const MatchScorer = ({ match, players }) => {
         </p>
       </div>
 
+      {/* Free Hit Indicator */}
+      {isFreeHit && (
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-6 py-4 rounded-lg font-bold text-center animate-pulse shadow-lg">
+            <p className="text-2xl mb-1">🔥 FREE HIT 🔥</p>
+            <p className="text-sm font-normal">
+              Batsman cannot be dismissed (except run-out)
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Current Batsmen Display */}
+      {(currentBatsman || currentNonStriker) && (
+        <div
+          className={`mb-6 p-4 rounded-lg ${
+            isDarkMode ? "bg-gray-700" : "bg-gray-100"
+          }`}
+        >
+          <p
+            className={`text-xs font-medium mb-3 text-center ${
+              isDarkMode ? "text-gray-400" : "text-gray-600"
+            }`}
+          >
+            On Crease
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Striker */}
+            <div
+              className={`text-center p-3 rounded-lg border-2 ${
+                currentBatsman
+                  ? isDarkMode
+                    ? "border-green-500 bg-gray-800"
+                    : "border-green-500 bg-white"
+                  : isDarkMode
+                  ? "border-gray-600 bg-gray-800"
+                  : "border-gray-300 bg-gray-50"
+              }`}
+            >
+              <p
+                className={`text-xs mb-1 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                Striker ⭐
+              </p>
+              <p
+                className={`font-bold ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                }`}
+              >
+                {currentBatsman
+                  ? players?.find((p) => p.id == currentBatsman)?.user
+                      ?.fullName || "Unknown"
+                  : "Not selected"}
+              </p>
+            </div>
+
+            {/* Non-Striker */}
+            <div
+              className={`text-center p-3 rounded-lg border ${
+                currentNonStriker
+                  ? isDarkMode
+                    ? "border-gray-500 bg-gray-800"
+                    : "border-gray-400 bg-white"
+                  : isDarkMode
+                  ? "border-gray-600 bg-gray-800"
+                  : "border-gray-300 bg-gray-50"
+              }`}
+            >
+              <p
+                className={`text-xs mb-1 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                Non-Striker
+              </p>
+              <p
+                className={`font-medium ${
+                  isDarkMode ? "text-gray-300" : "text-gray-700"
+                }`}
+              >
+                {currentNonStriker
+                  ? players?.find((p) => p.id == currentNonStriker)?.user
+                      ?.fullName || "Unknown"
+                  : "Not selected"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Player Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Batsman */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Striker */}
         <div>
           <label
             className={`block text-sm font-medium mb-2 ${
@@ -438,23 +784,59 @@ const MatchScorer = ({ match, players }) => {
             }`}
           >
             <Target className="w-4 h-4 inline mr-1" />
-            Current Batsman
+            Striker ⭐
           </label>
           <select
             value={currentBatsman}
             onChange={(e) => setCurrentBatsman(e.target.value)}
+            className={`w-full p-3 rounded-lg border-2 ${
+              isDarkMode
+                ? "bg-gray-700 border-green-500 text-white"
+                : "bg-white border-green-500 text-gray-900"
+            }`}
+          >
+            <option value="">Select Striker</option>
+            {players
+              ?.filter((p) => p.role !== "Bowler" && p.id != currentNonStriker)
+              .map((player) => (
+                <option
+                  key={`striker-${player.id}-${player.teamId}`}
+                  value={player.id}
+                >
+                  {player.user?.fullName} - {player.role} ({player.teamName})
+                </option>
+              ))}
+          </select>
+        </div>
+
+        {/* Non-Striker */}
+        <div>
+          <label
+            className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? "text-gray-300" : "text-gray-700"
+            }`}
+          >
+            <Target className="w-4 h-4 inline mr-1" />
+            Non-Striker
+          </label>
+          <select
+            value={currentNonStriker}
+            onChange={(e) => setCurrentNonStriker(e.target.value)}
             className={`w-full p-3 rounded-lg border ${
               isDarkMode
                 ? "bg-gray-700 border-gray-600 text-white"
                 : "bg-white border-gray-300 text-gray-900"
             }`}
           >
-            <option value="">Select Batsman</option>
+            <option value="">Select Non-Striker</option>
             {players
-              ?.filter((p) => p.role !== "Bowler")
+              ?.filter((p) => p.role !== "Bowler" && p.id != currentBatsman)
               .map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.user?.fullName} - {player.role}
+                <option
+                  key={`non-striker-${player.id}-${player.teamId}`}
+                  value={player.id}
+                >
+                  {player.user?.fullName} - {player.role} ({player.teamName})
                 </option>
               ))}
           </select>
@@ -483,8 +865,11 @@ const MatchScorer = ({ match, players }) => {
             {players
               ?.filter((p) => p.role !== "Batsman")
               .map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.user?.fullName} - {player.role}
+                <option
+                  key={`bowler-${player.id}-${player.teamId}`}
+                  value={player.id}
+                >
+                  {player.user?.fullName} - {player.role} ({player.teamName})
                 </option>
               ))}
           </select>
@@ -504,6 +889,7 @@ const MatchScorer = ({ match, players }) => {
           {ballOutcomes.map((outcome) => (
             <button
               key={outcome.id}
+              type="button"
               onClick={() => handleBallClick(outcome)}
               disabled={ballLoading}
               className={`p-4 rounded-lg text-white font-bold text-xl transition-all ${getColorClass(
@@ -521,6 +907,7 @@ const MatchScorer = ({ match, players }) => {
         {extras.map((extra) => (
           <button
             key={extra.id}
+            type="button"
             onClick={() => handleBallClick(extra)}
             disabled={ballLoading}
             className={`p-3 rounded-lg font-medium text-white transition-all ${getColorClass(
@@ -531,6 +918,7 @@ const MatchScorer = ({ match, players }) => {
           </button>
         ))}
         <button
+          type="button"
           onClick={() => handleBallClick({ id: "wicket", label: "W" })}
           disabled={ballLoading}
           className={`p-3 rounded-lg font-bold text-white transition-all ${getColorClass(
@@ -599,6 +987,7 @@ const MatchScorer = ({ match, players }) => {
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3">
         <button
+          type="button"
           onClick={handleUndo}
           disabled={balls.length === 0 || ballLoading}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -614,6 +1003,7 @@ const MatchScorer = ({ match, players }) => {
         </button>
 
         <button
+          type="button"
           onClick={handleCompleteInnings}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
@@ -622,6 +1012,7 @@ const MatchScorer = ({ match, players }) => {
         </button>
 
         <button
+          type="button"
           onClick={handleCompleteMatch}
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
@@ -651,12 +1042,20 @@ const MatchScorer = ({ match, players }) => {
             }`}
           >
             <h3
-              className={`text-lg font-semibold mb-4 ${
+              className={`text-lg font-semibold mb-2 ${
                 isDarkMode ? "text-white" : "text-gray-900"
               }`}
             >
               Select Wicket Type
             </h3>
+
+            {isFreeHit && (
+              <div className="mb-4 p-3 bg-yellow-500 bg-opacity-20 border border-yellow-500 rounded-lg">
+                <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                  🔥 FREE HIT - Only run-out is allowed!
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3 mb-6">
               {wicketTypes.map((type) => (
@@ -705,6 +1104,29 @@ const MatchScorer = ({ match, players }) => {
           </div>
         </div>
       )}
+
+      {/* Bowler Selection Modal */}
+      <BowlerSelectionModal
+        isOpen={showBowlerModal}
+        onClose={() => setShowBowlerModal(false)}
+        onSelectBowler={handleBowlerSelection}
+        players={players}
+        currentBowler={currentBowler}
+        lastBowler={lastBowler}
+        bowlerStats={bowlerStats}
+      />
+
+      {/* Extra Runs Modal */}
+      <ExtraRunsModal
+        isOpen={showExtraRunsModal}
+        onClose={() => {
+          setShowExtraRunsModal(false);
+          setSelectedExtra(null);
+          setExtraRuns(0);
+        }}
+        onSubmit={handleExtraRunsSubmit}
+        extraType={selectedExtra}
+      />
     </div>
   );
 };

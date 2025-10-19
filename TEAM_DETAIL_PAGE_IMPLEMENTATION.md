@@ -472,3 +472,4 @@ lg:grid-cols-3     // 3 columns for players
 
 **🎊 Your team management system now has a complete detail view!** 🏏
 
+

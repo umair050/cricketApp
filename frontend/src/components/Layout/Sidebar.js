@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   LayoutDashboard,
@@ -12,6 +12,13 @@ import {
   ChevronRight,
   Newspaper,
   Swords,
+  MapPin,
+  Calendar,
+  PlusCircle,
+  Building2,
+  ClipboardList,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   toggleSidebar as toggleSidebarAction,
@@ -52,6 +59,14 @@ const Sidebar = () => {
     { to: "/teams", icon: Shield, label: "Teams" },
     { to: "/tournaments", icon: Trophy, label: "Tournaments" },
     { to: "/matches", icon: Swords, label: "Matches" },
+    { to: "/grounds", icon: MapPin, label: "Browse Grounds" },
+    { to: "/grounds/owner/my-grounds", icon: Building2, label: "My Grounds" },
+    {
+      to: "/grounds/owner/all-bookings",
+      icon: ClipboardList,
+      label: "Manage Orders",
+    },
+    { to: "/bookings/my-bookings", icon: Calendar, label: "My Bookings" },
     { to: "/invitations", icon: Mail, label: "Invitations" },
     { to: "/profile", icon: User, label: "Profile" },
   ];
@@ -111,6 +126,7 @@ const Sidebar = () => {
               <NavLink
                 key={to}
                 to={to}
+                end={to === "/grounds"}
                 onClick={handleNavClick}
                 className={({ isActive }) =>
                   `flex items-center ${

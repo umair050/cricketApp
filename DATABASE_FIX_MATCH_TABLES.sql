@@ -21,3 +21,4 @@ DROP TABLE IF EXISTS tournament_groups CASCADE;
 -- \i DATABASE_FIX_MATCH_TABLES.sql
 
 
+

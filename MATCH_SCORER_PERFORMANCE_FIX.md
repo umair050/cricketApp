@@ -361,3 +361,4 @@ If you see excessive requests again, check:
 4. **Event Handlers** - Are event handlers creating new functions every render?
 
 Use the **React DevTools Profiler** to identify re-render culprits!
+

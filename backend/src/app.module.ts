@@ -10,6 +10,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { SeederModule } from './seeder/seeder.module';
 import { FeedsModule } from './feeds/feeds.module';
 import { MatchesModule } from './matches/matches.module';
+import { GroundsModule } from './grounds/grounds.module';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { MatchesModule } from './matches/matches.module';
       password: process.env.DB_PASSWORD || 'cricketapp',
       database: process.env.DB_DATABASE || 'cricketapp',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV !== 'production', // Auto-create tables in development
+      synchronize: true, // Auto-create tables from entities
       logging: process.env.NODE_ENV === 'development',
     }),
     AuthModule,
@@ -36,6 +37,7 @@ import { MatchesModule } from './matches/matches.module';
     SeederModule,
     FeedsModule,
     MatchesModule,
+    GroundsModule,
   ],
 })
 export class AppModule {}

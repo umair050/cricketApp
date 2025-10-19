@@ -14,6 +14,13 @@ import Invitations from "./pages/Invitations/Invitations";
 import Feed from "./pages/Feed/Feed";
 import Matches from "./pages/Matches/Matches";
 import MatchDetail from "./pages/Matches/MatchDetail";
+import GroundsBrowse from "./pages/Grounds/GroundsBrowse";
+import GroundDetail from "./pages/Grounds/GroundDetail";
+import MyGrounds from "./pages/Grounds/MyGrounds";
+import MyBookings from "./pages/Grounds/MyBookings";
+import RegisterGround from "./pages/Grounds/RegisterGround";
+import GroundBookingsManagement from "./pages/Grounds/GroundBookingsManagement";
+import AllBookingsManagement from "./pages/Grounds/AllBookingsManagement";
 import { Provider } from "react-redux";
 import store from "./store";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -53,6 +60,19 @@ function AppRoutes() {
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="matches" element={<Matches />} />
         <Route path="matches/:id" element={<MatchDetail />} />
+        <Route path="grounds" element={<GroundsBrowse />} />
+        <Route path="grounds/register" element={<RegisterGround />} />
+        <Route path="grounds/owner/my-grounds" element={<MyGrounds />} />
+        <Route
+          path="grounds/owner/all-bookings"
+          element={<AllBookingsManagement />}
+        />
+        <Route
+          path="grounds/:groundId/manage-bookings"
+          element={<GroundBookingsManagement />}
+        />
+        <Route path="grounds/:id" element={<GroundDetail />} />
+        <Route path="bookings/my-bookings" element={<MyBookings />} />
         <Route path="invitations" element={<Invitations />} />
         <Route path="profile" element={<Profile />} />
       </Route>

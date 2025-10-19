@@ -3,6 +3,7 @@ import feedReducer from "./slices/feedSlice";
 import invitationReducer from "./slices/invitationSlice";
 import sidebarReducer from "./slices/sidebarSlice";
 import matchReducer from "./slices/matchSlice";
+import groundReducer from "./slices/groundSlice";
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     invitations: invitationReducer,
     sidebar: sidebarReducer,
     match: matchReducer,
+    grounds: groundReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

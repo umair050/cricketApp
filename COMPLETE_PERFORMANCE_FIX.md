@@ -469,3 +469,4 @@ If you still see excessive requests, check:
 
 These principles apply to any React component, not just this scorer!
 
+

@@ -72,12 +72,16 @@ const MatchDetail = () => {
       const teamAPlayersList =
         teamAData.members?.map((member) => ({
           id: member.player.id,
+          teamId: currentMatch.teamA.id,
+          teamName: currentMatch.teamA.name,
           ...member.player,
         })) || [];
 
       const teamBPlayersList =
         teamBData.members?.map((member) => ({
           id: member.player.id,
+          teamId: currentMatch.teamB.id,
+          teamName: currentMatch.teamB.name,
           ...member.player,
         })) || [];
 
