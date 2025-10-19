@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { createPortal } from "react-dom";
 import {
   LayoutDashboard,
   Users,
@@ -28,7 +29,31 @@ import {
 
 const Sidebar = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { isCollapsed, isMobile } = useSelector((state) => state.sidebar);
+  const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
+  const [flyoutPosition, setFlyoutPosition] = useState(null);
+  const [hideTimeout, setHideTimeout] = useState(null);
+
+  // Auto-expand submenu if current route matches
+  useEffect(() => {
+    if (
+      location.pathname.startsWith("/grounds") ||
+      location.pathname.startsWith("/bookings")
+    ) {
+      setOpenSubmenu("grounds");
+    }
+  }, [location.pathname]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeout) {
+        clearTimeout(hideTimeout);
+      }
+    };
+  }, [hideTimeout]);
 
   // Handle window resize
   useEffect(() => {
@@ -52,24 +77,195 @@ const Sidebar = () => {
     }
   };
 
-  const navItems = [
+  const toggleSubmenu = (key) => {
+    setOpenSubmenu(openSubmenu === key ? null : key);
+  };
+
+  // ============================================
+  // NAVIGATION CONFIGURATION
+  // ============================================
+  // To add a submenu to any item, just add a 'submenu' property with array of child items
+  // Example:
+  // {
+  //   key: "myMenu",        // Required for submenu items
+  //   label: "Parent",
+  //   icon: IconName,
+  //   submenu: [
+  //     { to: "/path", icon: IconName, label: "Child" }
+  //   ]
+  // }
+
+  const navigationConfig = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/feed", icon: Newspaper, label: "Feed" },
     { to: "/players", icon: Users, label: "Players" },
     { to: "/teams", icon: Shield, label: "Teams" },
     { to: "/tournaments", icon: Trophy, label: "Tournaments" },
     { to: "/matches", icon: Swords, label: "Matches" },
-    { to: "/grounds", icon: MapPin, label: "Browse Grounds" },
-    { to: "/grounds/owner/my-grounds", icon: Building2, label: "My Grounds" },
+
+    // Grounds Menu with Submenu (easily add more submenu items here!)
     {
-      to: "/grounds/owner/all-bookings",
-      icon: ClipboardList,
-      label: "Manage Orders",
+      key: "grounds",
+      label: "Grounds",
+      icon: MapPin,
+      submenu: [
+        { to: "/grounds", icon: MapPin, label: "Browse Grounds" },
+        { to: "/grounds/register", icon: PlusCircle, label: "List Ground" },
+        {
+          to: "/grounds/owner/my-grounds",
+          icon: Building2,
+          label: "My Grounds",
+        },
+        {
+          to: "/grounds/owner/all-bookings",
+          icon: ClipboardList,
+          label: "Manage Orders",
+        },
+        { to: "/bookings/my-bookings", icon: Calendar, label: "My Bookings" },
+      ],
     },
-    { to: "/bookings/my-bookings", icon: Calendar, label: "My Bookings" },
+
     { to: "/invitations", icon: Mail, label: "Invitations" },
     { to: "/profile", icon: User, label: "Profile" },
   ];
+
+  // Check if any submenu child is active
+  const isAnySubmenuChildActive = (submenuItems) => {
+    return submenuItems.some((item) => location.pathname.startsWith(item.to));
+  };
+
+  // Render a single nav item (regular or with submenu)
+  const renderNavItem = (item, index) => {
+    const Icon = item.icon;
+
+    // Item with Submenu
+    if (item.submenu) {
+      const isOpen = openSubmenu === item.key;
+      const isAnyChildActive = isAnySubmenuChildActive(item.submenu);
+
+      return (
+        <div
+          key={item.key || index}
+          className="relative"
+          onMouseEnter={(e) => {
+            // Clear any existing timeout
+            if (hideTimeout) {
+              clearTimeout(hideTimeout);
+              setHideTimeout(null);
+            }
+            setHoveredSubmenu(item.key);
+            const rect = e.currentTarget.getBoundingClientRect();
+            setFlyoutPosition({
+              left: rect.right + 8,
+              top: rect.top,
+            });
+          }}
+          onMouseLeave={() => {
+            // Add a small delay before hiding
+            const timeout = setTimeout(() => {
+              setHoveredSubmenu(null);
+              setFlyoutPosition(null);
+            }, 100);
+            setHideTimeout(timeout);
+          }}
+        >
+          {/* Parent Menu Button */}
+          <button
+            onClick={() => toggleSubmenu(item.key)}
+            className={`w-full flex items-center ${
+              isCollapsed && !isMobile
+                ? "justify-center px-3 py-3"
+                : "justify-between px-4 py-3"
+            } rounded-lg transition-all duration-200 relative ${
+              isAnyChildActive
+                ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-l-4 border-green-600 dark:border-green-400"
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+            }`}
+          >
+            <div className="flex items-center space-x-3">
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              {(!isCollapsed || isMobile) && (
+                <span className="font-medium whitespace-nowrap">
+                  {item.label}
+                </span>
+              )}
+            </div>
+            {(!isCollapsed || isMobile) &&
+              (isOpen ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              ))}
+          </button>
+
+          {/* Expanded Submenu Items (when sidebar is open) */}
+          {isOpen && (!isCollapsed || isMobile) && (
+            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-2">
+              {item.submenu.map((subItem) => {
+                const SubIcon = subItem.icon;
+                return (
+                  <NavLink
+                    key={subItem.to}
+                    to={subItem.to}
+                    end={subItem.to === "/grounds"}
+                    onClick={handleNavClick}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                        isActive
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                      }`
+                    }
+                  >
+                    <SubIcon className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm whitespace-nowrap">
+                      {subItem.label}
+                    </span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Regular Nav Item (no submenu)
+    return (
+      <NavLink
+        key={item.to || index}
+        to={item.to}
+        onClick={handleNavClick}
+        className={({ isActive }) =>
+          `flex items-center ${
+            isCollapsed && !isMobile
+              ? "justify-center px-3 py-3"
+              : "space-x-3 px-4 py-3"
+          } rounded-lg transition-all duration-200 group relative ${
+            isActive
+              ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-l-4 border-green-600 dark:border-green-400"
+              : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+          }`
+        }
+        title={isCollapsed && !isMobile ? item.label : ""}
+      >
+        <Icon className="w-5 h-5 flex-shrink-0" />
+        {(!isCollapsed || isMobile) && (
+          <span className="font-medium transition-opacity duration-200 whitespace-nowrap">
+            {item.label}
+          </span>
+        )}
+
+        {/* Tooltip for collapsed state - Desktop Only */}
+        {isCollapsed && !isMobile && (
+          <div className="absolute left-full ml-2 px-3 py-1.5 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+            {item.label}
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+          </div>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
     <>
@@ -122,41 +318,7 @@ const Sidebar = () => {
               isCollapsed && !isMobile ? "mt-4" : ""
             } flex-shrink-0`}
           >
-            {navItems.map(({ to, icon: Icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/grounds"}
-                onClick={handleNavClick}
-                className={({ isActive }) =>
-                  `flex items-center ${
-                    isCollapsed && !isMobile
-                      ? "justify-center px-3 py-3"
-                      : "space-x-3 px-4 py-3"
-                  } rounded-lg transition-all duration-200 group relative ${
-                    isActive
-                      ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-l-4 border-green-600 dark:border-green-400"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-                  }`
-                }
-                title={isCollapsed && !isMobile ? label : ""}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {(!isCollapsed || isMobile) && (
-                  <span className="font-medium transition-opacity duration-200 whitespace-nowrap">
-                    {label}
-                  </span>
-                )}
-
-                {/* Tooltip for collapsed state - Desktop Only */}
-                {isCollapsed && !isMobile && (
-                  <div className="absolute left-full ml-2 px-3 py-1.5 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
-                    {label}
-                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
-                  </div>
-                )}
-              </NavLink>
-            ))}
+            {navigationConfig.map((item, index) => renderNavItem(item, index))}
           </nav>
 
           {/* Bottom Section */}
@@ -185,6 +347,81 @@ const Sidebar = () => {
           </div>
         </div>
       </aside>
+
+      {/* Portal Flyout Menu */}
+      {isCollapsed &&
+        !isMobile &&
+        hoveredSubmenu &&
+        flyoutPosition &&
+        createPortal(
+          <div
+            className="fixed bg-gray-900 dark:bg-gray-700 text-white rounded-md shadow-xl min-w-[200px] z-[99999]"
+            style={{
+              position: "fixed",
+              left: flyoutPosition.left,
+              top: flyoutPosition.top,
+              zIndex: 99999,
+              minWidth: "200px",
+              backgroundColor: "#1f2937",
+              color: "white",
+            }}
+            onMouseEnter={() => {
+              // Clear any existing timeout when hovering over flyout
+              if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                setHideTimeout(null);
+              }
+            }}
+            onMouseLeave={() => {
+              // Add a small delay before hiding
+              const timeout = setTimeout(() => {
+                setHoveredSubmenu(null);
+                setFlyoutPosition(null);
+              }, 100);
+              setHideTimeout(timeout);
+            }}
+          >
+            {/* Arrow */}
+            <div className="absolute left-0 top-4 transform -translate-x-1 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+
+            {/* Submenu Header */}
+            <div className="px-3 py-2 border-b border-gray-700 dark:border-gray-600">
+              <span className="text-sm font-semibold">Grounds</span>
+            </div>
+
+            {/* Submenu Items */}
+            <div className="py-2">
+              {navigationConfig
+                .find((item) => item.key === hoveredSubmenu)
+                ?.submenu?.map((subItem) => {
+                  const SubIcon = subItem.icon;
+                  const isActive =
+                    subItem.to === "/grounds"
+                      ? location.pathname === subItem.to
+                      : location.pathname === subItem.to ||
+                        location.pathname.startsWith(subItem.to + "/");
+                  return (
+                    <NavLink
+                      key={subItem.to}
+                      to={subItem.to}
+                      onClick={handleNavClick}
+                      className={`flex items-center space-x-2 px-3 py-2 transition-colors ${
+                        isActive
+                          ? "bg-green-600 text-white"
+                          : "hover:bg-gray-800 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      <SubIcon className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm whitespace-nowrap">
+                        {subItem.label}
+                      </span>
+                    </NavLink>
+                  );
+                })}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 };
