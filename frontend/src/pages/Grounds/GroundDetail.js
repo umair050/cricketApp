@@ -34,6 +34,7 @@ const GroundDetail = () => {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedSlots, setSelectedSlots] = useState([]); // For multi-slot selection
 
   // Availability checker state
   const [selectedDate, setSelectedDate] = useState(
@@ -64,13 +65,24 @@ const GroundDetail = () => {
         );
 
         // Convert slots to booking-like format for UI compatibility
-        const slotsAsBookings = bookedSlotsData.slots.map((slot) => ({
-          id: `slot-${slot.date}-${slot.startTime}`,
-          startDatetime: `${slot.date}T${slot.startTime}`,
-          endDatetime: `${slot.date}T${slot.endTime}`,
-          status: slot.isBooked ? "confirmed" : "pending",
-          isPaid: false,
-        }));
+        const slotsAsBookings = bookedSlotsData.slots.map((slot) => {
+          // Convert UTC slot times to local time
+          const utcStartDateTime = new Date(`${slot.date}T${slot.startTime}Z`);
+          const utcEndDateTime = new Date(`${slot.date}T${slot.endTime}Z`);
+
+          // Handle cross-day slots (endTime < startTime)
+          if (slot.endTime < slot.startTime) {
+            utcEndDateTime.setDate(utcEndDateTime.getDate() + 1);
+          }
+
+          return {
+            id: `slot-${slot.date}-${slot.startTime}`,
+            startDatetime: utcStartDateTime.toISOString(),
+            endDatetime: utcEndDateTime.toISOString(),
+            status: slot.isBooked ? "confirmed" : "pending",
+            isPaid: false,
+          };
+        });
 
         setGroundBookings(slotsAsBookings);
       }
@@ -95,19 +107,73 @@ const GroundDetail = () => {
     // Availability is calculated from groundBookings, no need for separate API call
   }, [selectedDate, ground]);
 
-  // Handler for slot clicks
-  const handleSlotClick = (slot) => {
+  // Handler for slot clicks (with multi-select support)
+  const handleSlotClick = (slot, hour) => {
     if (slot.isBooked) {
       return; // Don't open modal for booked slots
     }
 
-    const [startTime, endTime] = slot.time.split(" - ");
+    const slotKey = `${selectedDate}-${hour}`;
+    const isSelected = selectedSlots.some((s) => s.key === slotKey);
+
+    if (isSelected) {
+      // Deselect the slot
+      setSelectedSlots(selectedSlots.filter((s) => s.key !== slotKey));
+    } else {
+      // Select the slot
+      const [startTime, endTime] = slot.time.split(" - ");
+      setSelectedSlots([
+        ...selectedSlots,
+        {
+          key: slotKey,
+          hour,
+          startTime,
+          endTime,
+          date: selectedDate,
+        },
+      ]);
+    }
+  };
+
+  // Handler for booking selected slots
+  const handleBookSelectedSlots = () => {
+    if (selectedSlots.length === 0) return;
+
+    // Sort slots by hour
+    const sortedSlots = [...selectedSlots].sort((a, b) => a.hour - b.hour);
+
+    // Check if slots are consecutive
+    const areConsecutive = sortedSlots.every((slot, index) => {
+      if (index === 0) return true;
+      return slot.hour === sortedSlots[index - 1].hour + 1;
+    });
+
+    if (!areConsecutive) {
+      alert("Please select consecutive time slots");
+      return;
+    }
+
+    // Create a single booking with combined time range
+    const startTime = sortedSlots[0].startTime;
+    const endTime = sortedSlots[sortedSlots.length - 1].endTime;
+
     setSelectedSlot({
       startTime,
       endTime,
     });
     setShowBookingModal(true);
   };
+
+  // Clear selected slots when date changes or modal closes
+  const handleModalClose = () => {
+    setShowBookingModal(false);
+    setSelectedSlot(null);
+    setSelectedSlots([]);
+  };
+
+  useEffect(() => {
+    setSelectedSlots([]);
+  }, [selectedDate]);
 
   // Generate time slots for display
   const generateTimeSlots = () => {
@@ -140,11 +206,15 @@ const GroundDetail = () => {
         let bookingDate, bookingStartHour;
 
         if (booking.startDatetime.includes("T")) {
-          // ISO datetime format from bookings API
-          bookingDate = new Date(booking.startDatetime)
-            .toISOString()
-            .split("T")[0];
-          bookingStartHour = new Date(booking.startDatetime).getHours();
+          // ISO datetime format from bookings API (in UTC)
+          const bookingDateTime = new Date(booking.startDatetime);
+
+          // Get local date and time for comparison
+          const year = bookingDateTime.getFullYear();
+          const month = String(bookingDateTime.getMonth() + 1).padStart(2, "0");
+          const day = String(bookingDateTime.getDate()).padStart(2, "0");
+          bookingDate = `${year}-${month}-${day}`;
+          bookingStartHour = bookingDateTime.getHours();
         } else {
           // Slot format from booked-slots API (already in local time)
           bookingDate = booking.startDatetime.split(" ")[0] || selectedDate;
@@ -160,6 +230,7 @@ const GroundDetail = () => {
 
       slots.push({
         time: `${startTime} - ${endTime}`,
+        hour,
         isBooked,
       });
     }
@@ -689,48 +760,98 @@ const GroundDetail = () => {
                       }`}
                     >
                       <span className="inline-block w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
-                      Click on any available slot to book instantly
+                      Click slots to select multiple (must be consecutive)
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto overflow-x-hidden px-2 py-1">
-                    {timeSlots.map((slot, index) => (
-                      <div
-                        key={index}
-                        onClick={() => handleSlotClick(slot)}
-                        className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                          slot.isBooked
-                            ? isDarkMode
-                              ? "bg-red-900/20 border-red-800 text-red-300 cursor-not-allowed opacity-60"
-                              : "bg-red-50 border-red-300 text-red-700 cursor-not-allowed opacity-60"
-                            : isDarkMode
-                            ? "bg-green-900/20 border-green-800 text-green-300 cursor-pointer hover:bg-green-900/40 hover:border-green-600 hover:shadow-lg transform hover:scale-105"
-                            : "bg-green-50 border-green-300 text-green-700 cursor-pointer hover:bg-green-100 hover:border-green-400 hover:shadow-lg transform hover:scale-105"
+
+                  {/* Book Selected Slots Button */}
+                  {selectedSlots.length > 0 && (
+                    <div className="mb-3 flex items-center justify-between">
+                      <span
+                        className={`text-sm font-medium ${
+                          isDarkMode ? "text-gray-300" : "text-gray-700"
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              slot.isBooked
-                                ? "bg-red-600"
-                                : "bg-green-600 animate-pulse"
-                            }`}
-                          ></div>
-                          <span className="text-sm font-semibold">
-                            {slot.time}
-                          </span>
-                        </div>
-                        <div className="text-xs mt-1 flex items-center gap-1">
-                          {slot.isBooked ? (
-                            "Booked"
-                          ) : (
-                            <>
-                              <span>Click to Book</span>
-                              <span className="text-lg">→</span>
-                            </>
-                          )}
-                        </div>
+                        {selectedSlots.length} slot
+                        {selectedSlots.length > 1 ? "s" : ""} selected
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedSlots([])}
+                          className={`px-3 py-1 rounded text-sm ${
+                            isDarkMode
+                              ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                        >
+                          Clear
+                        </button>
+                        <button
+                          onClick={handleBookSelectedSlots}
+                          className="px-4 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                        >
+                          Book {selectedSlots.length} Slot
+                          {selectedSlots.length > 1 ? "s" : ""}
+                        </button>
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto overflow-x-hidden px-2 py-1">
+                    {timeSlots.map((slot, index) => {
+                      const slotKey = `${selectedDate}-${slot.hour}`;
+                      const isSelected = selectedSlots.some(
+                        (s) => s.key === slotKey
+                      );
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => handleSlotClick(slot, slot.hour)}
+                          className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                            slot.isBooked
+                              ? isDarkMode
+                                ? "bg-red-900/20 border-red-800 text-red-300 cursor-not-allowed opacity-60"
+                                : "bg-red-50 border-red-300 text-red-700 cursor-not-allowed opacity-60"
+                              : isSelected
+                              ? isDarkMode
+                                ? "bg-blue-900/40 border-blue-600 text-blue-200 cursor-pointer shadow-lg ring-2 ring-blue-500"
+                                : "bg-blue-100 border-blue-500 text-blue-900 cursor-pointer shadow-lg ring-2 ring-blue-400"
+                              : isDarkMode
+                              ? "bg-green-900/20 border-green-800 text-green-300 cursor-pointer hover:bg-green-900/40 hover:border-green-600 hover:shadow-lg transform hover:scale-105"
+                              : "bg-green-50 border-green-300 text-green-700 cursor-pointer hover:bg-green-100 hover:border-green-400 hover:shadow-lg transform hover:scale-105"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                slot.isBooked
+                                  ? "bg-red-600"
+                                  : isSelected
+                                  ? "bg-blue-600"
+                                  : "bg-green-600 animate-pulse"
+                              }`}
+                            ></div>
+                            <span className="text-sm font-semibold">
+                              {slot.time}
+                            </span>
+                          </div>
+                          <div className="text-xs mt-1 flex items-center gap-1">
+                            {slot.isBooked ? (
+                              "Booked"
+                            ) : isSelected ? (
+                              <>
+                                <span>✓ Selected</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Click to Select</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               ) : (
@@ -1089,13 +1210,11 @@ const GroundDetail = () => {
       {showBookingModal && (
         <BookingModal
           isOpen={showBookingModal}
-          onClose={() => {
-            setShowBookingModal(false);
-            setSelectedSlot(null);
-          }}
+          onClose={handleModalClose}
           ground={ground}
           prefilledDate={selectedSlot ? selectedDate : null}
           prefilledSlot={selectedSlot}
+          selectedSlots={selectedSlots.length > 0 ? selectedSlots : null}
           onSuccess={() => {
             setSelectedSlot(null);
             navigate("/bookings/my-bookings");

@@ -239,6 +239,15 @@ export class GroundsService {
     const startDate = new Date(startDatetime);
     const endDate = new Date(endDatetime);
     
+    console.log('Backend datetime processing:', {
+      startDatetime,
+      endDatetime,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      startDateLocal: startDate.toString(),
+      endDateLocal: endDate.toString()
+    });
+    
     // Extract UTC time components
     const startTimeUTC = startDate.toISOString().split('T')[1].substring(0, 8); // HH:MM:SS
     const endTimeUTC = endDate.toISOString().split('T')[1].substring(0, 8);
@@ -294,14 +303,31 @@ export class GroundsService {
       // Don't go beyond endDate
       const slotEnd = nextTime > endDate ? endDate : nextTime;
       
-      // Extract UTC components
-      const dateUTC = currentTime.toISOString().split('T')[0];
+      // Get the date for the current time slot based on the start time
+      const slotDate = currentTime.toISOString().split('T')[0];
       const startTimeUTC = currentTime.toISOString().split('T')[1].substring(0, 8);
       const endTimeUTC = slotEnd.toISOString().split('T')[1].substring(0, 8);
+      
+      // Handle cross-day slots: if endTime < startTime, the slot belongs to the next day
+      let finalSlotDate = slotDate;
+      if (endTimeUTC < startTimeUTC) {
+        const nextDay = new Date(currentTime);
+        nextDay.setDate(nextDay.getDate() + 1);
+        finalSlotDate = nextDay.toISOString().split('T')[0];
+      }
+
+      console.log('Creating slot:', {
+        slotDate,
+        finalSlotDate,
+        startTimeUTC,
+        endTimeUTC,
+        currentTime: currentTime.toISOString(),
+        slotEnd: slotEnd.toISOString()
+      });
 
       const slot = this.slotsRepository.create({
         ground: { id: groundId },
-        date: new Date(dateUTC),
+        date: new Date(finalSlotDate),
         startTime: startTimeUTC,
         endTime: endTimeUTC,
         isBooked: true,
