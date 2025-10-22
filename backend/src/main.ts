@@ -4,12 +4,20 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'], // Enable detailed logging
+  });
   
-  // Enable CORS for frontend
+  // Enable CORS for frontend AND mobile devices
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: true, // Allow all origins (mobile app can connect)
     credentials: true,
+  });
+  
+  // Log all incoming requests
+  app.use((req, res, next) => {
+    console.log(`📱 ${req.method} ${req.url} - From: ${req.headers['user-agent']?.substring(0, 50) || 'Unknown'}`);
+    next();
   });
 
   // Global validation pipe
@@ -31,8 +39,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3001);
+  await app.listen(3001, '0.0.0.0'); // Listen on all network interfaces
   console.log('🏏 Cricket App Backend running on http://localhost:3001');
+  console.log('📱 Mobile devices can connect via: http://192.168.18.11:3001');
   console.log('📚 API Documentation available at http://localhost:3001/api');
 }
 bootstrap();

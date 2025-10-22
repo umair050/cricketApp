@@ -26,6 +26,9 @@
   "author": "Jianjun",
   "license": "MIT",
   "devDependencies": {
+    "@react-native-community/cli": "^20.0.2",
+    "@react-native-community/cli-platform-android": "^20.0.2",
+    "@react-native-community/cli-platform-ios": "^20.0.2",
     "concurrently": "^8.2.2"
   },
   "repository": {

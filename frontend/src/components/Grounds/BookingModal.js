@@ -12,7 +12,6 @@ const BookingModal = ({
   onSuccess,
   prefilledDate,
   prefilledSlot,
-  selectedSlots, // Array of selected slots for multi-slot booking
 }) => {
   const { isDarkMode } = useDarkMode();
   const dispatch = useDispatch();
@@ -113,10 +112,10 @@ const BookingModal = ({
     const hours = (end - start) / (1000 * 60 * 60);
 
     if (formData.slotType === "daily") {
-      return parseFloat(ground.dailyRate || 0);
+      return ground.dailyRate;
     }
 
-    return hours * parseFloat(ground.hourlyRate || 0);
+    return hours * ground.hourlyRate;
   };
 
   const handleSubmit = async (e) => {
@@ -131,21 +130,11 @@ const BookingModal = ({
     setLoading(true);
 
     try {
-      // Construct datetime in local timezone, then convert to UTC
+      // Construct datetime (treated as local time, stored as UTC by backend)
       const startDatetime = new Date(
         `${formData.date}T${formData.startTime}:00`
       );
       const endDatetime = new Date(`${formData.date}T${formData.endTime}:00`);
-
-      console.log("Frontend datetime construction:", {
-        date: formData.date,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        startDatetime: startDatetime.toISOString(),
-        endDatetime: endDatetime.toISOString(),
-        localStart: startDatetime.toString(),
-        localEnd: endDatetime.toString(),
-      });
 
       const bookingData = {
         groundId: ground.id,
@@ -184,9 +173,9 @@ const BookingModal = ({
 
   if (!isOpen) return null;
 
-  const totalAmount = parseFloat(calculateAmount()) || 0;
-  const platformFee = parseFloat(totalAmount * 0.1) || 0;
-  const finalAmount = parseFloat(totalAmount + platformFee) || 0;
+  const totalAmount = calculateAmount();
+  const platformFee = totalAmount * 0.1;
+  const finalAmount = totalAmount + platformFee;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -231,66 +220,6 @@ const BookingModal = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Display Selected Slots if multiple */}
-          {selectedSlots && selectedSlots.length > 1 && (
-            <div
-              className={`p-4 rounded-lg border ${
-                isDarkMode
-                  ? "bg-blue-900/20 border-blue-800"
-                  : "bg-blue-50 border-blue-200"
-              }`}
-            >
-              <h3
-                className={`font-semibold mb-3 flex items-center gap-2 ${
-                  isDarkMode ? "text-blue-300" : "text-blue-800"
-                }`}
-              >
-                <span className="text-xl">📅</span>
-                Selected Time Slots ({selectedSlots.length})
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {selectedSlots.map((slot, index) => (
-                  <div
-                    key={index}
-                    className={`px-3 py-2 rounded border ${
-                      isDarkMode
-                        ? "bg-blue-900/40 border-blue-700 text-blue-200"
-                        : "bg-blue-100 border-blue-300 text-blue-900"
-                    }`}
-                  >
-                    <div className="text-xs font-medium">Slot {index + 1}</div>
-                    <div className="text-sm font-semibold">
-                      {slot.startTime} - {slot.endTime}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div
-                className={`mt-3 pt-3 border-t ${
-                  isDarkMode ? "border-blue-800" : "border-blue-300"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <span
-                    className={`text-sm font-medium ${
-                      isDarkMode ? "text-blue-300" : "text-blue-800"
-                    }`}
-                  >
-                    Combined Duration:
-                  </span>
-                  <span
-                    className={`text-sm font-bold ${
-                      isDarkMode ? "text-blue-200" : "text-blue-900"
-                    }`}
-                  >
-                    {selectedSlots[0].startTime} -{" "}
-                    {selectedSlots[selectedSlots.length - 1].endTime}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />
@@ -547,33 +476,12 @@ const BookingModal = ({
                 Price Summary
               </h3>
               <div className="space-y-2">
-                {selectedSlots && selectedSlots.length > 1 && (
-                  <div className="flex justify-between text-sm">
-                    <span
-                      className={isDarkMode ? "text-gray-300" : "text-gray-600"}
-                    >
-                      Number of Slots
-                    </span>
-                    <span
-                      className={isDarkMode ? "text-white" : "text-gray-900"}
-                    >
-                      {selectedSlots.length} slot
-                      {selectedSlots.length > 1 ? "s" : ""}
-                    </span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span
                     className={isDarkMode ? "text-gray-300" : "text-gray-600"}
                   >
                     {formData.slotType === "daily"
                       ? "Daily Rate"
-                      : selectedSlots && selectedSlots.length > 1
-                      ? `Hourly Rate (${
-                          selectedSlots.length
-                        } hrs × ₹${parseFloat(ground.hourlyRate || 0).toFixed(
-                          2
-                        )})`
                       : "Hourly Rate"}
                   </span>
                   <span className={isDarkMode ? "text-white" : "text-gray-900"}>
