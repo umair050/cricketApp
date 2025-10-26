@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   Alert,
+  BackHandler,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/common/Button";
@@ -36,11 +37,39 @@ export const FillProfileScreen = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Format date of birth if available
-    if (user?.dateOfBirth) {
-      setDateOfBirth(user.dateOfBirth);
+    // Update all fields when user data is available
+    if (user) {
+      if (user.firstName) setFirstName(user.firstName);
+      if (user.lastName) setLastName(user.lastName);
+      if (user.username) setUsername(user.username);
+      if (user.dateOfBirth) {
+        // Format date properly if it's in a Date format
+        const dob =
+          typeof user.dateOfBirth === "string"
+            ? user.dateOfBirth
+            : new Date(user.dateOfBirth).toISOString().split("T")[0];
+        setDateOfBirth(dob);
+      }
+      if (user.phoneNumber) setPhoneNumber(user.phoneNumber);
+      if (user.occupation) setOccupation(user.occupation);
+      if (user.profileImage) setProfileImage(user.profileImage);
     }
   }, [user]);
+
+  // Handle Android back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress
+    );
+
+    return () => backHandler.remove();
+  }, []);
+
+  const handleBackPress = () => {
+    router.back();
+    return true;
+  };
 
   const handleSelectImage = () => {
     // In a real app, you would use expo-image-picker here
@@ -84,10 +113,7 @@ export const FillProfileScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
 

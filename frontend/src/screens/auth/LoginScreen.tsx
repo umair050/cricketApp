@@ -18,6 +18,12 @@ import { SocialButton } from "@/components/common/SocialButton";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/hooks/useAuth";
 
+const socialButtons = [
+  { provider: "facebook" as const, color: "#1877F2", icon: "logo-facebook" },
+  { provider: "google" as const, color: "#DB4437", icon: "logo-google" },
+  { provider: "apple" as const, color: "#000000", icon: "logo-apple" },
+];
+
 export const LoginScreen = () => {
   const router = useRouter();
   const { login } = useAuth();
@@ -80,29 +86,6 @@ export const LoginScreen = () => {
             <Text style={styles.subtitle}>Let's you in</Text>
           </View>
 
-          {/* Social Login Buttons */}
-          <View style={styles.socialContainer}>
-            <SocialButton
-              provider="facebook"
-              onPress={() => handleSocialLogin("Facebook")}
-            />
-            <SocialButton
-              provider="google"
-              onPress={() => handleSocialLogin("Google")}
-            />
-            <SocialButton
-              provider="apple"
-              onPress={() => handleSocialLogin("Apple")}
-            />
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
           {/* Email/Password Form */}
           <View style={styles.form}>
             <Input
@@ -142,6 +125,37 @@ export const LoginScreen = () => {
               loading={login.isPending}
               style={styles.signInButton}
             />
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>
+              or Continue with Social Login
+            </Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Login Buttons */}
+          <View style={styles.socialContainer}>
+            <View style={styles.socialButtonsRow}>
+              {socialButtons.map((social) => (
+                <TouchableOpacity
+                  key={social.provider}
+                  style={[
+                    styles.socialButton,
+                    { backgroundColor: social.color },
+                  ]}
+                  onPress={() => handleSocialLogin(social.provider)}
+                >
+                  <Ionicons
+                    name={social.icon as any}
+                    size={24}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Sign Up Link */}
@@ -199,6 +213,34 @@ const styles = StyleSheet.create({
 
   socialContainer: {
     marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+  },
+
+  socialTitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    textAlign: "center",
+    marginBottom: theme.spacing.md,
+    fontWeight: theme.fontWeight.semibold,
+  },
+
+  socialButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: theme.spacing.md,
+  },
+
+  socialButton: {
+    width: 56,
+    height: 56,
+    borderRadius: theme.borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 
   divider: {

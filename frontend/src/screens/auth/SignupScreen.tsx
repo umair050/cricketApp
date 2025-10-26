@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import PhoneInput from "react-native-phone-input";
 import { Input } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { theme } from "@/constants/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppStore } from "@/store/appStore";
+
+const socialButtons = [
+  { provider: "facebook" as const, color: "#1877F2", icon: "logo-facebook" },
+  { provider: "google" as const, color: "#DB4437", icon: "logo-google" },
+  { provider: "apple" as const, color: "#000000", icon: "logo-apple" },
+];
 
 export const SignupScreen = () => {
   const router = useRouter();
@@ -28,12 +35,14 @@ export const SignupScreen = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [country, setCountry] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Phone number state
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const phoneInput = useRef<PhoneInput>(null);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -63,9 +72,9 @@ export const SignupScreen = () => {
       newErrors.email = "Invalid email address";
     }
 
-    if (!phoneNumber) {
+    if (!phoneInput.current?.getValue()) {
       newErrors.phoneNumber = "Phone number is required";
-    } else if (!/^\+?[1-9]\d{1,14}$/.test(phoneNumber)) {
+    } else if (!phoneInput.current?.isValidNumber()) {
       newErrors.phoneNumber = "Invalid phone number format";
     }
 
@@ -73,10 +82,6 @@ export const SignupScreen = () => {
     const monthDiff = new Date().getMonth() - dateOfBirth.getMonth();
     if (age < 13 || (age === 13 && monthDiff < 0)) {
       newErrors.dateOfBirth = "You must be at least 13 years old";
-    }
-
-    if (!country) {
-      newErrors.country = "Country is required";
     }
 
     if (!password) {
@@ -95,25 +100,19 @@ export const SignupScreen = () => {
     try {
       const formattedDate = dateOfBirth.toISOString().split("T")[0];
 
-      // Store signup data for prefill in profile
-      const signupData = {
-        username,
-        firstName,
-        lastName,
-        email,
-        phoneNumber,
-        dateOfBirth: formattedDate,
-        country,
-      };
+      // Get full phone number with country code
+      const fullPhoneNumber = phoneInput.current?.getValue() || phoneNumber;
+      const countryName =
+        phoneInput.current?.getCountryCode()?.toUpperCase() || "";
 
       await signup.mutateAsync({
         username,
         firstName,
         lastName,
         email,
-        phoneNumber,
+        phoneNumber: fullPhoneNumber,
         dateOfBirth: formattedDate,
-        country,
+        country: countryName,
         password,
       });
 
@@ -221,20 +220,22 @@ export const SignupScreen = () => {
             />
 
             {/* Phone Number */}
-            <Input
-              placeholder="Phone Number (+1234567890)"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              error={errors.phoneNumber}
-              keyboardType="phone-pad"
-              leftIcon={
-                <Ionicons
-                  name="call-outline"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-              }
-            />
+            <View style={styles.phoneContainer}>
+              <PhoneInput
+                ref={phoneInput}
+                initialCountry="pk"
+                initialValue=""
+                textProps={{
+                  placeholder: "Phone Number",
+                  style: styles.phoneInput,
+                }}
+                pickerButtonColor={theme.colors.primary}
+                style={styles.phoneInputContainer}
+              />
+              {errors.phoneNumber && (
+                <Text style={styles.errorText}>{errors.phoneNumber}</Text>
+              )}
+            </View>
 
             {/* Date of Birth */}
             <TouchableOpacity onPress={() => setShowDatePicker(true)}>
@@ -270,21 +271,6 @@ export const SignupScreen = () => {
               />
             )}
 
-            {/* Country */}
-            <Input
-              placeholder="Country"
-              value={country}
-              onChangeText={setCountry}
-              error={errors.country}
-              leftIcon={
-                <Ionicons
-                  name="flag-outline"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-              }
-            />
-
             {/* Password */}
             <Input
               placeholder="Password"
@@ -309,6 +295,43 @@ export const SignupScreen = () => {
             />
           </View>
 
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>
+              or continue with social login
+            </Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Login Buttons */}
+          <View style={styles.socialContainer}>
+            <View style={styles.socialButtonsRow}>
+              {socialButtons.map((social) => (
+                <TouchableOpacity
+                  key={social.provider}
+                  style={[
+                    styles.socialButton,
+                    { backgroundColor: social.color },
+                  ]}
+                  onPress={() => {
+                    // Handle social signup
+                    Alert.alert(
+                      "Coming Soon",
+                      `${social.provider} signup will be available soon`
+                    );
+                  }}
+                >
+                  <Ionicons
+                    name={social.icon as any}
+                    size={24}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           {/* Sign In Link */}
           <View style={styles.signInContainer}>
             <Text style={styles.signInText}>Already have an account? </Text>
@@ -329,6 +352,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: theme.spacing.xl,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+
+  dividerText: {
+    color: theme.colors.textSecondary,
+    marginHorizontal: theme.spacing.md,
+    fontSize: theme.fontSize.sm,
   },
 
   keyboardView: {
@@ -411,5 +452,65 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
+  },
+
+  // Phone input styles
+  phoneContainer: {
+    marginBottom: theme.spacing.md,
+  },
+
+  phoneInputContainer: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    height: 56,
+    width: "100%",
+  },
+
+  phoneInput: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.md,
+    height: 56,
+  },
+
+  errorText: {
+    color: theme.colors.error,
+    fontSize: theme.fontSize.sm,
+    marginTop: theme.spacing.xs,
+    marginLeft: theme.spacing.sm,
+  },
+
+  // Social buttons styles
+  socialContainer: {
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+  },
+
+  socialTitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    textAlign: "center",
+    marginBottom: theme.spacing.md,
+    fontWeight: theme.fontWeight.semibold,
+  },
+
+  socialButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: theme.spacing.md,
+  },
+
+  socialButton: {
+    width: 56,
+    height: 56,
+    borderRadius: theme.borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
