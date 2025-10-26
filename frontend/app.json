@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "CrikApp",
+    "slug": "crikapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1A1A2E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.crikapp.mobile"
+    },
+    "android": {
+      "package": "com.crikapp.mobile"
+    },
+    "plugins": ["expo-router"],
+    "scheme": "crikapp"
+  }
+}

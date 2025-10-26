@@ -1,0 +1,179 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String?   @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  phoneNumber   String?
+  dateOfBirth   DateTime?
+  country       String?
+  profileImage  String?
+  occupation    String?
+  bio           String?
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  
+  // Social Auth
+  facebookId    String?   @unique
+  googleId      String?   @unique
+  appleId       String?   @unique
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  posts         Post[]
+  likes         Like[]
+  comments      Comment[]
+  followers     Follow[]  @relation("UserFollowers")
+  following     Follow[]  @relation("UserFollowing")
+  passwordResets PasswordReset[]
+  stories       Story[]
+  storyViews    StoryView[]
+  
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model PasswordReset {
+  id            String    @id @default(cuid())
+  userId        String
+  code          String    @unique
+  expiresAt     DateTime
+  isUsed        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([code])
+  @@map("password_resets")
+}
+
+model Post {
+  id            String    @id @default(cuid())
+  userId        String
+  caption       String?
+  videoUrl      String
+  thumbnailUrl  String?
+  duration      Int?      // Duration in seconds
+  views         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes         Like[]
+  comments      Comment[]
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model Like {
+  id            String    @id @default(cuid())
+  userId        String
+  postId        String
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("likes")
+}
+
+model Comment {
+  id            String    @id @default(cuid())
+  userId        String
+  postId        String
+  content       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([postId])
+  @@map("comments")
+}
+
+model Follow {
+  id            String    @id @default(cuid())
+  followerId    String
+  followingId   String
+  createdAt     DateTime  @default(now())
+  
+  follower      User      @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User      @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Story {
+  id            String    @id @default(cuid())
+  userId        String
+  mediaUrl      String    // Image or video URL
+  mediaType     String    // 'image' or 'video'
+  thumbnailUrl  String?
+  caption       String?
+  duration      Int?      // Duration in seconds for videos
+  backgroundColor String? // Hex color for text stories
+  textColor     String?   // Hex color for text
+  views         Int       @default(0)
+  isActive      Boolean   @default(true)
+  expiresAt     DateTime  // Stories expire after 24 hours
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storyViews    StoryView[]
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("stories")
+}
+
+model StoryView {
+  id            String    @id @default(cuid())
+  storyId       String
+  userId        String
+  createdAt     DateTime  @default(now())
+  
+  story         Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@index([userId])
+  @@map("story_views")
+}
+
